@@ -289,17 +289,37 @@ Use these indicators consistently:
 - `GASTOWN_MAYOR_PANE` - Pane index to monitor (typically 0)
 - `GASTOWN_SESSION` - tmux session name
 
+## Focus-Independent Operation
+
+**IMPORTANT**: PM operation is designed to be completely focus-independent. User mouse clicks or pane focus changes do NOT affect PM's ability to:
+
+1. **Read Mayor's output** - `tmux capture-pane -t <target>` works regardless of focus
+2. **Read bd file** - File I/O is focus-independent
+3. **Write to bd file** - File I/O is focus-independent
+
+**PM NEVER needs to**:
+- Send keystrokes to Mayor's pane
+- Have focus on any particular pane
+- Interact with tmux input
+
+**If focus issues occur**:
+1. Verify you're using `-t $GASTOWN_SESSION:$GASTOWN_MAYOR_PANE` in all tmux commands
+2. Use absolute paths for bd file operations
+3. Communication is file-based (bd file), not keystroke-based
+
 ## Monitoring Commands
 
-To capture Mayor's pane output:
+To capture Mayor's pane output (works regardless of focus):
 
 ```bash
-# Capture last 50 lines from Mayor's pane
+# Capture last 50 lines from Mayor's pane (focus-independent)
 tmux capture-pane -t $GASTOWN_SESSION:$GASTOWN_MAYOR_PANE -p -S -50
 
-# Capture entire visible pane
+# Capture entire visible pane (focus-independent)
 tmux capture-pane -t $GASTOWN_SESSION:$GASTOWN_MAYOR_PANE -p
 ```
+
+**Note**: The `-t` flag specifies the target pane explicitly, so focus doesn't matter.
 
 ## Context File Structure
 
