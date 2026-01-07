@@ -9,15 +9,12 @@ import {
 } from '../tmux/operations.ts';
 import { getConvoyProgress } from '../scheduler/scheduler.ts';
 import type { BdFile } from '../types.ts';
-import type { ClaudeModel } from '../claude/command.ts';
 
 export interface StartOptions {
   maxWorkers?: number;
   projectDir?: string;
   contextPath?: string; // Path to convoy-context.md for autopilot mode
   primeMode?: boolean; // Enable Prime Minister mode for autonomous convoy
-  mayorModel?: ClaudeModel; // Model for Mayor (opus, sonnet, haiku)
-  primeModel?: ClaudeModel; // Model for Prime Minister (opus, sonnet, haiku)
 }
 
 export async function startConvoy(task: string, options: StartOptions = {}): Promise<void> {
@@ -26,8 +23,6 @@ export async function startConvoy(task: string, options: StartOptions = {}): Pro
   const maxWorkers = options.maxWorkers || config.maxWorkers;
   const contextPath = options.contextPath;
   const primeMode = options.primeMode || false;
-  const mayorModel = options.mayorModel;
-  const primeModel = options.primeModel;
 
   console.log(`Starting convoy for: "${task}"`);
   console.log(`Max workers: ${maxWorkers}`);
@@ -39,12 +34,6 @@ export async function startConvoy(task: string, options: StartOptions = {}): Pro
     if (!contextPath) {
       console.warn('Warning: Prime Minister mode works best with a context file (--context)');
     }
-  }
-  if (mayorModel) {
-    console.log(`Mayor model: ${mayorModel}`);
-  }
-  if (primeModel) {
-    console.log(`Prime Minister model: ${primeModel}`);
   }
 
   const bd = createNewBd(task, maxWorkers);
@@ -68,14 +57,6 @@ export async function startConvoy(task: string, options: StartOptions = {}): Pro
     bd.meta['mode'] = 'manual';
   }
 
-  // Store model preferences for resume
-  if (mayorModel) {
-    bd.meta['mayor-model'] = mayorModel;
-  }
-  if (primeModel) {
-    bd.meta['prime-model'] = primeModel;
-  }
-
   await writeBdFile(bd);
   console.log(`Created bd file: ${bd.path}`);
 
@@ -86,7 +67,7 @@ export async function startConvoy(task: string, options: StartOptions = {}): Pro
     return;
   }
 
-  const success = await launchMayor(sessionName, projectDir, bdPath, bd.convoyName, task, contextPath, primeMode, mayorModel);
+  const success = await launchMayor(sessionName, projectDir, bdPath, bd.convoyName, task, contextPath, primeMode);
 
   if (!success) {
     console.error('Failed to start convoy');
@@ -106,8 +87,7 @@ export async function startConvoy(task: string, options: StartOptions = {}): Pro
       bd.convoyName,
       task,
       primeContextPath,
-      '0', // Mayor is in pane 0
-      primeModel
+      '0' // Mayor is in pane 0
     );
 
     if (!primeSuccess) {
@@ -151,16 +131,6 @@ export async function resumeConvoy(bdPath: string): Promise<void> {
     console.log('Prime Minister mode enabled');
   }
 
-  // Get model preferences from bd meta
-  const mayorModel = bd.meta['mayor-model'] as ClaudeModel | undefined;
-  const primeModel = bd.meta['prime-model'] as ClaudeModel | undefined;
-  if (mayorModel) {
-    console.log(`Mayor model: ${mayorModel}`);
-  }
-  if (primeModel) {
-    console.log(`Prime Minister model: ${primeModel}`);
-  }
-
   const success = await launchMayor(
     sessionName,
     projectDir,
@@ -168,8 +138,7 @@ export async function resumeConvoy(bdPath: string): Promise<void> {
     bd.convoyName,
     bd.convoyDescription,
     contextPath,
-    isPrimeMode,
-    mayorModel
+    isPrimeMode
   );
 
   if (!success) {
@@ -188,8 +157,7 @@ export async function resumeConvoy(bdPath: string): Promise<void> {
       bd.convoyName,
       bd.convoyDescription,
       primeContextPath,
-      '0', // Mayor is in pane 0
-      primeModel
+      '0' // Mayor is in pane 0
     );
 
     if (!primeSuccess) {
