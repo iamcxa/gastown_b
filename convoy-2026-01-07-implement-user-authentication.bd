@@ -1,0 +1,21 @@
+# convoy-2026-01-07-implement-user-authentication.bd
+
+## 🟡 Convoy: Implement user authentication
+
+### Meta
+📝 created: 2026-01-07T13:53:38.161Z
+📝 phase: planning
+📝 max-workers: 3
+
+### Coordination
+🟡 [Mayor] Coordinating convoy
+  📝 last-checkpoint: starting
+  📝 context-usage: 0%
+
+### Planning
+🔵 [Planner] Brainstorming & Design
+
+🔵 [Foreman] Implementation Plan
+  📝 depends: Planner
+
+### Execution

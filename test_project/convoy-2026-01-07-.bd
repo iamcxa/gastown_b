@@ -1,0 +1,21 @@
+# convoy-2026-01-07-.bd
+
+## 🟡 Convoy: 測試任務
+
+### Meta
+📝 created: 2026-01-07T14:11:31.774Z
+📝 phase: planning
+📝 max-workers: 3
+
+### Coordination
+🟡 [Mayor] Coordinating convoy
+  📝 last-checkpoint: starting
+  📝 context-usage: 0%
+
+### Planning
+🔵 [Planner] Brainstorming & Design
+
+🔵 [Foreman] Implementation Plan
+  📝 depends: Planner
+
+### Execution

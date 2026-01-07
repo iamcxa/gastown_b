@@ -1,0 +1,22 @@
+# convoy-2026-01-07-web-3d.bd
+
+## 🟡 Convoy: 實作一個web 3d俄羅斯方塊
+
+### Meta
+📝 created: 2026-01-07T14:49:39.166Z
+📝 phase: planning
+📝 max-workers: 3
+📝 mode: manual
+
+### Coordination
+🟡 [Mayor] Coordinating convoy
+  📝 last-checkpoint: starting
+  📝 context-usage: 0%
+
+### Planning
+🔵 [Planner] Brainstorming & Design
+
+🔵 [Foreman] Implementation Plan
+  📝 depends: Planner
+
+### Execution

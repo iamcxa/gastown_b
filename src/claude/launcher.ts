@@ -13,6 +13,7 @@ export interface LaunchConfig {
   contextPath?: string; // Path to convoy-context.md for autopilot mode
   agentsDir?: string; // Override agent directory
   mayorPaneIndex?: string; // Pane index where Mayor is running (for Prime Minister)
+  primeMode?: boolean; // Whether Prime Minister mode is active (affects Mayor's prompt)
 }
 
 /**
@@ -71,7 +72,7 @@ export function getRoleAgentPath(role: RoleName, agentDir: string): string {
 
 export function buildLaunchConfig(config: LaunchConfig): ClaudeCommandOptions {
   const agentDir = getDefaultAgentDir(config.projectDir, config.role, config.agentsDir);
-  const prompt = buildRolePrompt(config.role, config.task, config.checkpoint, config.contextPath);
+  const prompt = buildRolePrompt(config.role, config.task, config.checkpoint, config.contextPath, config.primeMode);
 
   return {
     role: config.role,
@@ -107,7 +108,8 @@ export async function launchMayor(
   bdPath: string,
   convoyName: string,
   task: string,
-  contextPath?: string
+  contextPath?: string,
+  primeMode?: boolean
 ): Promise<boolean> {
   return await launchRole(
     sessionName,
@@ -118,6 +120,7 @@ export async function launchMayor(
       convoyName,
       task,
       contextPath,
+      primeMode,
     },
     true
   );

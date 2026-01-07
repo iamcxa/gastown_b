@@ -1,0 +1,11 @@
+{
+  "maxWorkers": 3,
+  "convoy": {
+    "bdDir": "./",
+    "archiveDir": "docs/tasks/archive"
+  },
+  "roles": {},
+  "respawn": {
+    "contextThreshold": 80
+  }
+}

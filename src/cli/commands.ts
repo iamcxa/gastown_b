@@ -67,7 +67,7 @@ export async function startConvoy(task: string, options: StartOptions = {}): Pro
     return;
   }
 
-  const success = await launchMayor(sessionName, projectDir, bdPath, bd.convoyName, task, contextPath);
+  const success = await launchMayor(sessionName, projectDir, bdPath, bd.convoyName, task, contextPath, primeMode);
 
   if (!success) {
     console.error('Failed to start convoy');
@@ -137,7 +137,8 @@ export async function resumeConvoy(bdPath: string): Promise<void> {
     bdPath,
     bd.convoyName,
     bd.convoyDescription,
-    contextPath
+    contextPath,
+    isPrimeMode
   );
 
   if (!success) {
