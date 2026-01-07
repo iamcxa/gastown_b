@@ -144,6 +144,16 @@ export function buildRolePrompt(role: RoleName, task: string, checkpoint?: strin
     refinery: (task) =>
       `You are Refinery (code quality). Audit and refactor: "${task}". ` +
       `Look for improvements, security issues, and code smells. Update bd file.`,
+
+    prime: (task, _checkpoint, contextPath) =>
+      contextPath
+        ? `You are the Prime Minister in AUTONOMOUS MODE. The task is: "${task}". ` +
+          `Read the context file at $GASTOWN_CONTEXT for decision principles. ` +
+          `Read the bd file at $GASTOWN_BD for current state and pending questions. ` +
+          `Answer questions from workers based on context and your judgment.`
+        : `You are the Prime Minister. The task is: "${task}". ` +
+          `Read the bd file at $GASTOWN_BD to understand current state and pending questions. ` +
+          `Answer questions from workers to unblock them. Use your judgment when context is insufficient.`,
   };
 
   return prompts[role](task, checkpoint, contextPath);

@@ -1,5 +1,33 @@
 // Core types for Gas Town
-export type RoleName = 'mayor' | 'planner' | 'foreman' | 'polecat' | 'witness' | 'dog' | 'refinery';
+export type RoleName = 'mayor' | 'planner' | 'foreman' | 'polecat' | 'witness' | 'dog' | 'refinery' | 'prime';
+
+// Prime Minister mode types
+export type QuestionType = 'decision' | 'clarification' | 'approval';
+export type ConfidenceLevel = 'high' | 'medium' | 'low' | 'none';
+export type ConvoyMode = 'mayor' | 'prime';
+
+export interface PendingQuestion {
+  question: string;
+  type: QuestionType;
+  options?: string[];
+  from: string;
+  at: string;
+}
+
+export interface Answer {
+  content: string;
+  from: 'prime' | 'human';
+  confidence: ConfidenceLevel;
+  reasoning?: string;
+  at: string;
+}
+
+export interface DecisionLogEntry {
+  question: string;
+  answer: string;
+  source: string;
+  confidence: string;
+}
 
 export type TaskStatus = '🔵' | '🟡' | '✅' | '⚠️';
 
@@ -24,6 +52,13 @@ export interface BdFile {
   contextPath?: string; // Path to convoy-context.md for autopilot guidance
   meta: Record<string, string>;
   sections: BdSection[];
+
+  // Prime Minister mode fields
+  mode?: ConvoyMode;
+  primeEnabled?: boolean;
+  pendingQuestion?: PendingQuestion;
+  answer?: Answer;
+  decisionLog?: DecisionLogEntry[];
 }
 
 export interface BdSection {
