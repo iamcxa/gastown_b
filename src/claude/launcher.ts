@@ -16,7 +16,18 @@ export interface LaunchConfig {
   primeMode?: boolean; // Whether Prime Minister mode is active (affects Mayor's prompt)
   dangerouslySkipPermissions?: boolean; // Skip all permission prompts (use with caution!)
   model?: import('./command.ts').ClaudeModel; // Model to use (opus, sonnet, haiku)
+  allowedTools?: string[]; // Pre-approved tools (e.g., 'Edit:*.bd', 'Read:*.bd')
 }
+
+/**
+ * Default allowed tools for Mayor role.
+ * Pre-approves bd file operations so Mayor doesn't need permission prompts.
+ */
+export const MAYOR_DEFAULT_ALLOWED_TOOLS = [
+  'Edit:*.bd',
+  'Read:*.bd',
+  'Write:*.bd',
+];
 
 /**
  * Get the gastown installation directory by resolving from import.meta.url.
@@ -88,6 +99,7 @@ export function buildLaunchConfig(config: LaunchConfig): ClaudeCommandOptions {
     workingDir: config.projectDir,
     dangerouslySkipPermissions: config.dangerouslySkipPermissions,
     model: config.model,
+    allowedTools: config.allowedTools,
   };
 }
 
@@ -127,6 +139,7 @@ export async function launchMayor(
       contextPath,
       primeMode,
       model,
+      allowedTools: MAYOR_DEFAULT_ALLOWED_TOOLS, // Pre-approve bd file operations
     },
     true
   );

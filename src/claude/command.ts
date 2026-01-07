@@ -36,6 +36,7 @@ export interface ClaudeCommandOptions {
   extraArgs?: string[];
   dangerouslySkipPermissions?: boolean; // Skip all permission prompts (use with caution!)
   model?: ClaudeModel; // Model to use (opus, sonnet, haiku). Default: sonnet
+  allowedTools?: string[]; // Pre-approved tools (e.g., 'Edit:*.bd', 'Read:*.bd')
 }
 
 export function buildAgentFlag(role: RoleName, agentDir: string): string {
@@ -77,6 +78,7 @@ export function buildClaudeCommand(options: ClaudeCommandOptions): string {
     extraArgs = [],
     dangerouslySkipPermissions,
     model,
+    allowedTools = [],
   } = options;
 
   const envVars = buildClaudeEnvVars(role, bdPath, convoyName, contextPath, mayorPaneIndex);
@@ -102,6 +104,13 @@ export function buildClaudeCommand(options: ClaudeCommandOptions): string {
   // Model flag (opus, sonnet, haiku)
   if (model) {
     args.push(`--model ${model}`);
+  }
+
+  // Allowed tools flag (pre-approved tools, e.g., 'Edit:*.bd', 'Read:*.bd')
+  if (allowedTools.length > 0) {
+    for (const tool of allowedTools) {
+      args.push(`--allowedTools ${shellEscape(tool)}`);
+    }
   }
 
   // Prompt - pass as positional argument at the end
