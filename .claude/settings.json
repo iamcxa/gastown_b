@@ -25,5 +25,52 @@
         "matcher": ""
       }
     ]
+  },
+  "permissions": {
+    "allow": [
+      "mcp__beads__*",
+      "Bash(bd:*)",
+      "Bash(bd prime:*)",
+      "Bash(bd list:*)",
+      "Bash(bd show:*)",
+      "Bash(bd create:*)",
+      "Bash(bd update:*)",
+      "Bash(bd close:*)",
+      "Bash(bd reopen:*)",
+      "Bash(bd search:*)",
+      "Bash(bd status:*)",
+      "Bash(bd sync:*)",
+      "Bash(bd export:*)",
+      "Bash(bd import:*)",
+      "Bash(bd dep:*)",
+      "Bash(bd graph:*)",
+      "Bash(bd label:*)",
+      "Bash(bd comments:*)",
+      "Bash(bd config:*)",
+      "Bash(bd activity:*)",
+      "Bash(bd count:*)",
+      "Bash(bd q:*)",
+      "Bash(bd edit:*)",
+      "Bash(bd delete:*)",
+      "Bash(bd refile:*)",
+      "Bash(bd move:*)",
+      "Bash(bd epic:*)",
+      "Bash(bd swarm:*)",
+      "Bash(bd set-state:*)",
+      "Bash(bd state:*)",
+      "Bash(bd gate:*)",
+      "Bash(bd merge-slot:*)",
+      "Bash(bd lint:*)",
+      "Bash(bd stale:*)",
+      "Bash(bd duplicate:*)",
+      "Bash(bd duplicates:*)",
+      "Bash(bd supersede:*)",
+      "Bash(bd restore:*)",
+      "Bash(bd daemon:*)",
+      "Bash(bd hooks:*)",
+      "Bash(bd setup:*)",
+      "Bash(bd version:*)",
+      "Bash(bd help:*)"
+    ]
   }
 }
