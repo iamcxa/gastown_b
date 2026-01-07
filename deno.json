@@ -1,0 +1,25 @@
+{
+  "$schema": "https://deno.land/x/deno/cli/schemas/config-file.v1.json",
+  "name": "@gastown/cli",
+  "version": "0.1.0",
+  "tasks": {
+    "dev": "deno run --allow-all --watch gastown.ts",
+    "test": "deno test --allow-all",
+    "check": "deno check gastown.ts",
+    "compile": "deno compile --allow-all --output=gastown gastown.ts"
+  },
+  "fmt": {
+    "useTabs": false,
+    "lineWidth": 100,
+    "indentWidth": 2,
+    "singleQuote": true
+  },
+  "lint": {
+    "rules": {
+      "tags": ["recommended"]
+    }
+  },
+  "compilerOptions": {
+    "strict": true
+  }
+}

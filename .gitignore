@@ -1,0 +1,18 @@
+# Deno
+.deno/
+
+# Compiled binary
+gastown
+gastown.exe
+
+# OS
+.DS_Store
+Thumbs.db
+
+# IDE
+.vscode/
+.idea/
+
+# Test artifacts
+*.test.bd
+convoy-test-*.bd
