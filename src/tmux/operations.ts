@@ -167,3 +167,39 @@ export async function sessionExists(sessionName: string): Promise<boolean> {
   const sessions = await listSessions();
   return sessions.includes(sessionName);
 }
+
+/**
+ * Build command to capture pane output.
+ * Uses tmux capture-pane with -p (print to stdout) and -S (start line).
+ * Negative start line captures from end of scrollback.
+ */
+export function buildCapturePaneCommand(
+  sessionName: string,
+  paneIndex: string,
+  lines: number = 50
+): string {
+  // -t target pane, -p print to stdout, -S start line (negative = from end)
+  return buildTmuxCommand([
+    'capture-pane',
+    '-t',
+    `${sessionName}:0.${paneIndex}`,
+    '-p',
+    '-S',
+    `-${lines}`,
+  ]);
+}
+
+/**
+ * Capture pane output for monitoring.
+ * Returns the last N lines from the specified pane.
+ * Used by Prime Minister to monitor Mayor's output.
+ */
+export async function capturePaneOutput(
+  sessionName: string,
+  paneIndex: string,
+  lines: number = 50
+): Promise<string> {
+  const cmd = buildCapturePaneCommand(sessionName, paneIndex, lines);
+  const result = await runTmuxCommand(cmd);
+  return result.output;
+}
