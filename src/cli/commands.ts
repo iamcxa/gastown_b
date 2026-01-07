@@ -1,6 +1,6 @@
 import { loadConfig, saveConfig, generateDefaultConfig } from './config.ts';
 import { createNewBd, writeBdFile, parseBdFile } from '../bd/mod.ts';
-import { launchMayor } from '../claude/launcher.ts';
+import { launchMayor, launchPrime } from '../claude/launcher.ts';
 import {
   attachSession,
   killSession,
@@ -22,11 +22,18 @@ export async function startConvoy(task: string, options: StartOptions = {}): Pro
   const config = await loadConfig(projectDir);
   const maxWorkers = options.maxWorkers || config.maxWorkers;
   const contextPath = options.contextPath;
+  const primeMode = options.primeMode || false;
 
   console.log(`Starting convoy for: "${task}"`);
   console.log(`Max workers: ${maxWorkers}`);
   if (contextPath) {
     console.log(`Autopilot mode: ${contextPath}`);
+  }
+  if (primeMode) {
+    console.log('Prime Minister mode enabled');
+    if (!contextPath) {
+      console.warn('Warning: Prime Minister mode works best with a context file (--context)');
+    }
   }
 
   const bd = createNewBd(task, maxWorkers);
@@ -37,6 +44,14 @@ export async function startConvoy(task: string, options: StartOptions = {}): Pro
   if (contextPath) {
     bd.contextPath = contextPath;
     bd.meta['context-path'] = contextPath;
+  }
+
+  // Set mode based on primeMode flag
+  if (primeMode) {
+    bd.mode = 'prime';
+    bd.meta['mode'] = 'prime';
+    bd.primeEnabled = true;
+  } else if (contextPath) {
     bd.meta['mode'] = 'autopilot';
   } else {
     bd.meta['mode'] = 'manual';
@@ -60,6 +75,29 @@ export async function startConvoy(task: string, options: StartOptions = {}): Pro
   }
 
   console.log(`Convoy started: ${sessionName}`);
+
+  // Launch Prime Minister in second pane if primeMode is enabled
+  if (primeMode) {
+    console.log('Launching Prime Minister in split pane...');
+    const primeContextPath = contextPath || ''; // PM needs context, but we warned above if missing
+    const primeSuccess = await launchPrime(
+      sessionName,
+      projectDir,
+      bdPath,
+      bd.convoyName,
+      task,
+      primeContextPath,
+      '0' // Mayor is in pane 0
+    );
+
+    if (!primeSuccess) {
+      console.error('Failed to launch Prime Minister');
+      // Continue anyway - Mayor is running
+    } else {
+      console.log('Prime Minister launched');
+    }
+  }
+
   console.log('Attaching to session...');
   await attachSession(sessionName);
 }
@@ -87,6 +125,12 @@ export async function resumeConvoy(bdPath: string): Promise<void> {
     console.log(`Resuming in autopilot mode: ${contextPath}`);
   }
 
+  // Check if prime mode was enabled
+  const isPrimeMode = bd.mode === 'prime' || bd.meta['mode'] === 'prime' || bd.primeEnabled;
+  if (isPrimeMode) {
+    console.log('Prime Minister mode enabled');
+  }
+
   const success = await launchMayor(
     sessionName,
     projectDir,
@@ -99,6 +143,28 @@ export async function resumeConvoy(bdPath: string): Promise<void> {
   if (!success) {
     console.error('Failed to resume convoy');
     return;
+  }
+
+  // Launch Prime Minister if prime mode was enabled
+  if (isPrimeMode) {
+    console.log('Launching Prime Minister in split pane...');
+    const primeContextPath = contextPath || '';
+    const primeSuccess = await launchPrime(
+      sessionName,
+      projectDir,
+      bdPath,
+      bd.convoyName,
+      bd.convoyDescription,
+      primeContextPath,
+      '0' // Mayor is in pane 0
+    );
+
+    if (!primeSuccess) {
+      console.error('Failed to launch Prime Minister');
+      // Continue anyway - Mayor is running
+    } else {
+      console.log('Prime Minister launched');
+    }
   }
 
   console.log('Convoy resumed. Attaching...');
