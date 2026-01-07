@@ -14,6 +14,7 @@ export interface StartOptions {
   maxWorkers?: number;
   projectDir?: string;
   contextPath?: string; // Path to convoy-context.md for autopilot mode
+  primeMode?: boolean; // Enable Prime Minister mode for autonomous convoy
 }
 
 export async function startConvoy(task: string, options: StartOptions = {}): Promise<void> {

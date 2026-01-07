@@ -6,6 +6,7 @@
  * Usage:
  *   gastown "task description"     Start new convoy
  *   gastown --context <file>       Start in autopilot mode with context file
+ *   gastown --prime <task>         Start in Prime Minister mode
  *   gastown --resume <bd-file>     Resume from bd
  *   gastown --status [bd-file]     Show status
  *   gastown attach [session]       Attach to session
@@ -32,6 +33,7 @@ Gas Town v${VERSION} - Multi-Agent Orchestrator for Claude Code
 USAGE:
   gastown <task>                    Start new convoy with task
   gastown --context <file> <task>   Start in autopilot mode with context file
+  gastown --prime <task>            Start in Prime Minister mode
   gastown --resume <bd-file>        Resume convoy from bd file
   gastown --status [bd-file]        Show convoy status
   gastown attach [session-name]     Attach to running convoy
@@ -41,13 +43,23 @@ USAGE:
 OPTIONS:
   --max-workers <n>    Maximum parallel workers (default: 3)
   --context <file>     Path to convoy-context.md for autopilot mode
+  --prime, -p          Enable Prime Minister mode (autonomous convoy)
   --help, -h           Show this help
   --version, -v        Show version
 
-AUTOPILOT MODE:
-  When --context is provided, Mayor will read pre-defined answers
-  and decision principles from the context file, proceeding without
-  user interaction unless blocked by critical issues.
+MODES:
+  Mayor Mode (default):
+    Human interacts with Mayor agent for convoy coordination.
+    Mayor asks questions and waits for human decisions.
+
+  Autopilot Mode (--context):
+    Mayor reads pre-defined answers from context file.
+    Proceeds without interaction unless blocked by critical issues.
+
+  Prime Minister Mode (--prime):
+    PM agent makes decisions autonomously. Human observes in
+    two-pane UI (Mayor | Prime Minister) and can intervene.
+    Best used with --context to provide PM decision context.
 
   Create a context file from the template:
     cp .gastown/templates/convoy-context.template.md my-context.md
@@ -55,6 +67,9 @@ AUTOPILOT MODE:
 EXAMPLES:
   gastown "Implement user authentication"
   gastown --context auth-context.md "Implement user authentication"
+  gastown --prime "Implement user authentication"
+  gastown --prime --context auth-context.md "Implement auth"
+  gastown -p -c auth-context.md "Implement auth"
   gastown --max-workers 5 "Refactor payment module"
   gastown --resume convoy-2026-01-07.bd
   gastown --status
@@ -66,11 +81,12 @@ EXAMPLES:
 async function main(): Promise<void> {
   const args = parseArgs(Deno.args, {
     string: ['resume', 'status', 'max-workers', 'context'],
-    boolean: ['help', 'version', 'archive'],
+    boolean: ['help', 'version', 'archive', 'prime'],
     alias: {
       h: 'help',
       v: 'version',
       c: 'context',
+      p: 'prime',
     },
   });
 
@@ -116,6 +132,7 @@ async function main(): Promise<void> {
     await startConvoy(task, {
       maxWorkers: args['max-workers'] ? parseInt(args['max-workers']) : undefined,
       contextPath: args.context,
+      primeMode: args.prime,
     });
     return;
   }
