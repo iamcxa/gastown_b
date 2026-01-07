@@ -14,9 +14,26 @@ export function buildTmuxCommand(args: string[]): string {
 export function buildNewSessionCommand(sessionName: string, command?: string): string {
   const args = ['new-session', '-d', '-s', shellEscape(sessionName)];
   if (command) {
-    args.push(shellEscape(command));
+    // Don't shellEscape the command - it's already properly constructed by buildClaudeCommand
+    // with internal escaping. Double-escaping would break the command.
+    // Use double quotes to wrap the command so it's passed as a single arg to tmux
+    // but internal single quotes remain intact.
+    args.push(`"${shellEscapeDouble(command)}"`);
   }
   return buildTmuxCommand(args);
+}
+
+/**
+ * Escape a string for use in shell double quotes.
+ * Escapes: $ ` \ " !
+ */
+function shellEscapeDouble(str: string): string {
+  return str
+    .replace(/\\/g, '\\\\')
+    .replace(/"/g, '\\"')
+    .replace(/\$/g, '\\$')
+    .replace(/`/g, '\\`')
+    .replace(/!/g, '\\!');
 }
 
 export function buildSplitPaneCommand(
@@ -25,7 +42,8 @@ export function buildSplitPaneCommand(
   direction: SplitDirection = 'horizontal'
 ): string {
   const dirFlag = direction === 'horizontal' ? '-h' : '-v';
-  return buildTmuxCommand(['split-window', '-t', shellEscape(sessionName), dirFlag, shellEscape(command)]);
+  // Use double quotes for command (same reason as buildNewSessionCommand)
+  return buildTmuxCommand(['split-window', '-t', shellEscape(sessionName), dirFlag, `"${shellEscapeDouble(command)}"`]);
 }
 
 export function buildSelectPaneCommand(sessionName: string, paneIndex: string): string {

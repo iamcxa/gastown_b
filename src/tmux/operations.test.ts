@@ -10,10 +10,11 @@ import {
 Deno.test('buildNewSessionCommand - creates session with name', () => {
   const cmd = buildNewSessionCommand('gastown-test', 'echo hello');
   assertStringIncludes(cmd, 'tmux new-session');
-  // Session names and commands are shell-escaped with single quotes
+  // Session names are shell-escaped with single quotes
   assertStringIncludes(cmd, "-s 'gastown-test'");
   assertStringIncludes(cmd, '-d');
-  assertStringIncludes(cmd, "'echo hello'");
+  // Commands use double quotes to avoid double-escaping issues
+  assertStringIncludes(cmd, '"echo hello"');
 });
 
 Deno.test('buildSplitPaneCommand - splits horizontally', () => {
