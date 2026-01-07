@@ -27,6 +27,7 @@ export interface ClaudeCommandOptions {
   bdPath: string;
   convoyName: string;
   contextPath?: string; // Path to convoy-context.md for autopilot mode
+  mayorPaneIndex?: string; // Pane index where Mayor is running (for Prime Minister)
   prompt?: string;
   resume?: boolean;
   workingDir?: string;
@@ -41,7 +42,8 @@ export function buildClaudeEnvVars(
   role: RoleName,
   bdPath: string,
   convoyName: string,
-  contextPath?: string
+  contextPath?: string,
+  mayorPaneIndex?: string
 ): Record<string, string> {
   const vars: Record<string, string> = {
     GASTOWN_ROLE: role,
@@ -50,6 +52,9 @@ export function buildClaudeEnvVars(
   };
   if (contextPath) {
     vars.GASTOWN_CONTEXT = contextPath;
+  }
+  if (mayorPaneIndex !== undefined) {
+    vars.GASTOWN_MAYOR_PANE = mayorPaneIndex;
   }
   return vars;
 }
@@ -61,13 +66,14 @@ export function buildClaudeCommand(options: ClaudeCommandOptions): string {
     bdPath,
     convoyName,
     contextPath,
+    mayorPaneIndex,
     prompt,
     resume,
     workingDir,
     extraArgs = [],
   } = options;
 
-  const envVars = buildClaudeEnvVars(role, bdPath, convoyName, contextPath);
+  const envVars = buildClaudeEnvVars(role, bdPath, convoyName, contextPath, mayorPaneIndex);
   const envString = Object.entries(envVars)
     .map(([key, value]) => `${key}=${value}`)
     .join(' ');

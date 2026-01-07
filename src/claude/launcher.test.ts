@@ -58,3 +58,21 @@ Deno.test('buildLaunchConfig - includes checkpoint for respawn', () => {
 
   assertEquals(config.resume, true);
 });
+
+Deno.test('buildLaunchConfig - includes mayorPaneIndex for prime role', () => {
+  const config = buildLaunchConfig({
+    role: 'prime',
+    projectDir: '/project',
+    bdPath: '/project/convoy.bd',
+    convoyName: 'test-convoy',
+    task: 'Monitor and answer questions',
+    contextPath: '/project/context.md',
+    mayorPaneIndex: '0',
+    agentsDir: '/custom/agents',
+  });
+
+  assertEquals(config.role, 'prime');
+  assertEquals(config.contextPath, '/project/context.md');
+  assertEquals(config.mayorPaneIndex, '0');
+  assertEquals(config.agentDir, '/custom/agents');
+});

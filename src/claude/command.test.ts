@@ -91,3 +91,31 @@ Deno.test('buildClaudeCommand - includes context env var for autopilot mode', ()
 
   assertStringIncludes(cmd, 'GASTOWN_CONTEXT=/path/to/context.md');
 });
+
+Deno.test('buildClaudeEnvVars - includes mayor pane index when provided', () => {
+  const env = buildClaudeEnvVars('prime', '/convoy.bd', 'convoy-test', '/context.md', '0');
+  assertEquals(env['GASTOWN_ROLE'], 'prime');
+  assertEquals(env['GASTOWN_BD'], '/convoy.bd');
+  assertEquals(env['GASTOWN_CONVOY'], 'convoy-test');
+  assertEquals(env['GASTOWN_CONTEXT'], '/context.md');
+  assertEquals(env['GASTOWN_MAYOR_PANE'], '0');
+});
+
+Deno.test('buildClaudeEnvVars - omits mayor pane index when not provided', () => {
+  const env = buildClaudeEnvVars('prime', '/convoy.bd', 'convoy-test', '/context.md');
+  assertEquals(env['GASTOWN_MAYOR_PANE'], undefined);
+});
+
+Deno.test('buildClaudeCommand - includes mayor pane env var for prime role', () => {
+  const cmd = buildClaudeCommand({
+    role: 'prime',
+    agentDir: '/agents',
+    bdPath: '/test.bd',
+    convoyName: 'test',
+    contextPath: '/path/to/context.md',
+    mayorPaneIndex: '0',
+  });
+
+  assertStringIncludes(cmd, 'GASTOWN_MAYOR_PANE=0');
+  assertStringIncludes(cmd, 'GASTOWN_CONTEXT=/path/to/context.md');
+});

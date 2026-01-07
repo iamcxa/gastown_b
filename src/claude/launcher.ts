@@ -12,6 +12,7 @@ export interface LaunchConfig {
   checkpoint?: string;
   contextPath?: string; // Path to convoy-context.md for autopilot mode
   agentsDir?: string; // Override agent directory
+  mayorPaneIndex?: string; // Pane index where Mayor is running (for Prime Minister)
 }
 
 /**
@@ -78,6 +79,7 @@ export function buildLaunchConfig(config: LaunchConfig): ClaudeCommandOptions {
     bdPath: config.bdPath,
     convoyName: config.convoyName,
     contextPath: config.contextPath,
+    mayorPaneIndex: config.mayorPaneIndex,
     prompt,
     resume: config.checkpoint !== undefined,
     workingDir: config.projectDir,
@@ -118,6 +120,42 @@ export async function launchMayor(
       contextPath,
     },
     true
+  );
+}
+
+/**
+ * Launch Prime Minister in a split pane after Mayor.
+ * Prime Minister monitors Mayor's pane and answers questions from workers.
+ *
+ * @param sessionName - tmux session name
+ * @param projectDir - project directory
+ * @param bdPath - path to bd file
+ * @param convoyName - convoy name
+ * @param task - task description
+ * @param contextPath - path to convoy-context.md (required for PM to answer questions)
+ * @param mayorPaneIndex - pane index where Mayor is running (default: '0')
+ */
+export async function launchPrime(
+  sessionName: string,
+  projectDir: string,
+  bdPath: string,
+  convoyName: string,
+  task: string,
+  contextPath: string,
+  mayorPaneIndex: string = '0'
+): Promise<boolean> {
+  return await launchRole(
+    sessionName,
+    {
+      role: 'prime',
+      projectDir,
+      bdPath,
+      convoyName,
+      task,
+      contextPath,
+      mayorPaneIndex,
+    },
+    false // Not first pane - splits from existing session
   );
 }
 
