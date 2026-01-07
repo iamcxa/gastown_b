@@ -1,0 +1,45 @@
+# Gas Town Convoy - Prime Minister Implementation
+
+convoy: prime-minister-implementation
+description: Implement Prime Minister mode for autonomous convoy execution
+
+## Meta
+created: 2026-01-08T00:00:00Z
+phase: planning-complete
+mode: manual
+design-doc: docs/plans/2026-01-08-prime-minister-design.md
+max-workers: 3
+
+## Planning
+- [x] [mayor] Design system architecture
+- [x] [mayor] Define communication protocol
+- [x] [mayor] Specify PM agent behavior
+- [x] [mayor] Define CLI interface
+- [x] [mayor] Create implementation plan
+- [x] [mayor] Write design document
+
+## Implementation
+- [ ] [polecat] Create PM agent definition (.gastown/agents/prime.md)
+- [ ] [polecat] Add --prime/-p CLI flag to gastown.ts
+- [ ] [polecat] Update types.ts with prime mode types
+- [ ] [polecat] Add capturePaneOutput to tmux/operations.ts
+- [ ] [polecat] Add launchPrime to claude/launcher.ts
+- [ ] [polecat] Update commands.ts for prime mode startup
+- [ ] [polecat] Add PM-specific prompt builder to command.ts
+- [ ] [polecat] Update mayor.md for PM-aware behavior
+
+## Testing
+- [ ] [dog] Unit tests for PM prompt builder
+- [ ] [dog] Unit tests for question detection
+- [ ] [dog] Unit tests for bd file question/answer parsing
+- [ ] [dog] Integration test for pane capture
+- [ ] [dog] Manual test: prime mode startup
+
+## Review
+- [ ] [witness] Code review all changes
+- [ ] [witness] Verify decision log persistence
+- [ ] [witness] Verify escalation flow
+
+## Notes
+last-checkpoint: design-complete
+context-usage: 15%
