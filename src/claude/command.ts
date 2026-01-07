@@ -32,6 +32,7 @@ export interface ClaudeCommandOptions {
   resume?: boolean;
   workingDir?: string;
   extraArgs?: string[];
+  dangerouslySkipPermissions?: boolean; // Skip all permission prompts (use with caution!)
 }
 
 export function buildAgentFlag(role: RoleName, agentDir: string): string {
@@ -71,6 +72,7 @@ export function buildClaudeCommand(options: ClaudeCommandOptions): string {
     resume,
     workingDir,
     extraArgs = [],
+    dangerouslySkipPermissions,
   } = options;
 
   const envVars = buildClaudeEnvVars(role, bdPath, convoyName, contextPath, mayorPaneIndex);
@@ -86,6 +88,11 @@ export function buildClaudeCommand(options: ClaudeCommandOptions): string {
   // Resume flag
   if (resume) {
     args.push('--resume');
+  }
+
+  // Dangerously skip permissions flag (for autonomous operation)
+  if (dangerouslySkipPermissions) {
+    args.push('--dangerously-skip-permissions');
   }
 
   // Prompt - pass as positional argument at the end

@@ -14,6 +14,7 @@ export interface LaunchConfig {
   agentsDir?: string; // Override agent directory
   mayorPaneIndex?: string; // Pane index where Mayor is running (for Prime Minister)
   primeMode?: boolean; // Whether Prime Minister mode is active (affects Mayor's prompt)
+  dangerouslySkipPermissions?: boolean; // Skip all permission prompts (use with caution!)
 }
 
 /**
@@ -84,6 +85,7 @@ export function buildLaunchConfig(config: LaunchConfig): ClaudeCommandOptions {
     prompt,
     resume: config.checkpoint !== undefined,
     workingDir: config.projectDir,
+    dangerouslySkipPermissions: config.dangerouslySkipPermissions,
   };
 }
 
@@ -157,6 +159,7 @@ export async function launchPrime(
       task,
       contextPath,
       mayorPaneIndex,
+      dangerouslySkipPermissions: true, // PM operates autonomously without permission prompts
     },
     false // Not first pane - splits from existing session
   );
