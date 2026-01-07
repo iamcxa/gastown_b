@@ -10,15 +10,16 @@ import {
 Deno.test('buildNewSessionCommand - creates session with name', () => {
   const cmd = buildNewSessionCommand('gastown-test', 'echo hello');
   assertStringIncludes(cmd, 'tmux new-session');
-  assertStringIncludes(cmd, '-s gastown-test');
+  // Session names and commands are shell-escaped with single quotes
+  assertStringIncludes(cmd, "-s 'gastown-test'");
   assertStringIncludes(cmd, '-d');
-  assertStringIncludes(cmd, 'echo hello');
+  assertStringIncludes(cmd, "'echo hello'");
 });
 
 Deno.test('buildSplitPaneCommand - splits horizontally', () => {
   const cmd = buildSplitPaneCommand('gastown-test', 'echo worker', 'horizontal');
   assertStringIncludes(cmd, 'tmux split-window');
-  assertStringIncludes(cmd, '-t gastown-test');
+  assertStringIncludes(cmd, "-t 'gastown-test'");
   assertStringIncludes(cmd, '-h');
 });
 
@@ -36,7 +37,8 @@ Deno.test('buildKillPaneCommand - kills specific pane', () => {
 Deno.test('buildAttachCommand - attaches to session', () => {
   const cmd = buildAttachCommand('gastown-test');
   assertStringIncludes(cmd, 'tmux attach-session');
-  assertStringIncludes(cmd, '-t gastown-test');
+  // Session name is shell-escaped
+  assertStringIncludes(cmd, "-t 'gastown-test'");
 });
 
 Deno.test('parseSessionList - parses tmux list-sessions output', () => {

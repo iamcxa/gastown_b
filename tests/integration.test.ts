@@ -88,7 +88,8 @@ Deno.test('Integration: Claude command generation', () => {
   assertEquals(cmd.includes('GASTOWN_BD=/project/convoy.bd'), true);
   assertEquals(cmd.includes('GASTOWN_CONVOY=test-convoy'), true);
   assertEquals(cmd.includes('--agent /project/.gastown/agents/polecat.md'), true);
-  assertEquals(cmd.includes('cd /project'), true);
+  // Working directory is shell-escaped with single quotes
+  assertEquals(cmd.includes("cd '/project'"), true);
   assertEquals(cmd.includes('Implement JWT service'), true);
 });
 

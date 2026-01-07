@@ -10,10 +10,57 @@ export interface LaunchConfig {
   convoyName: string;
   task: string;
   checkpoint?: string;
+  agentsDir?: string; // Override agent directory
 }
 
-export function getDefaultAgentDir(projectDir: string): string {
-  return `${projectDir}/.gastown/agents`;
+/**
+ * Get the gastown installation directory by resolving from import.meta.url.
+ * This allows gastown to find its bundled agents regardless of where it's run from.
+ */
+export function getGastownInstallDir(): string {
+  // import.meta.url is file:///path/to/src/claude/launcher.ts
+  // We need to go up 2 levels to get the gastown root
+  const url = new URL(import.meta.url);
+  const filePath = url.pathname;
+  // Go from src/claude/launcher.ts to gastown root
+  const parts = filePath.split('/');
+  parts.pop(); // remove launcher.ts
+  parts.pop(); // remove claude
+  parts.pop(); // remove src
+  return parts.join('/');
+}
+
+/**
+ * Get the agent directory, checking multiple locations in order:
+ * 1. Explicitly provided agentsDir (must contain the agent file)
+ * 2. Project-local .gastown/agents (for custom agents, if agent file exists)
+ * 3. Gastown installation directory agents/ (bundled agents)
+ *
+ * @param projectDir - The project directory
+ * @param role - The role to look for (e.g., 'mayor', 'polecat')
+ * @param agentsDir - Optional explicit agent directory override
+ */
+export function getDefaultAgentDir(projectDir: string, role: string = 'mayor', agentsDir?: string): string {
+  // If explicitly set, use it
+  if (agentsDir) {
+    return agentsDir;
+  }
+
+  // Check project-local agents first (only if the agent file exists)
+  const projectAgentsDir = `${projectDir}/.gastown/agents`;
+  const projectAgentFile = `${projectAgentsDir}/${role}.md`;
+  try {
+    const stat = Deno.statSync(projectAgentFile);
+    if (stat.isFile) {
+      return projectAgentsDir;
+    }
+  } catch {
+    // Agent file doesn't exist in project, continue
+  }
+
+  // Fall back to gastown installation directory
+  const installDir = getGastownInstallDir();
+  return `${installDir}/.gastown/agents`;
 }
 
 export function getRoleAgentPath(role: RoleName, agentDir: string): string {
@@ -21,7 +68,7 @@ export function getRoleAgentPath(role: RoleName, agentDir: string): string {
 }
 
 export function buildLaunchConfig(config: LaunchConfig): ClaudeCommandOptions {
-  const agentDir = getDefaultAgentDir(config.projectDir);
+  const agentDir = getDefaultAgentDir(config.projectDir, config.role, config.agentsDir);
   const prompt = buildRolePrompt(config.role, config.task, config.checkpoint);
 
   return {

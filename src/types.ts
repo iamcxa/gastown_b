@@ -49,6 +49,7 @@ export interface WorkerState {
 
 export interface GastownConfig {
   maxWorkers: number;
+  agentsDir?: string; // Path to agent definitions, defaults to gastown installation dir
   convoy: {
     bdDir: string;
     archiveDir: string;

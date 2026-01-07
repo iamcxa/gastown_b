@@ -38,8 +38,8 @@ Deno.test('buildClaudeCommand - includes prompt when provided', () => {
     prompt: 'Implement auth feature',
   });
 
-  assertStringIncludes(cmd, '--prompt');
-  assertStringIncludes(cmd, 'Implement auth feature');
+  // Prompt is passed as positional argument (shell-escaped), not with --prompt flag
+  assertStringIncludes(cmd, "'Implement auth feature'");
 });
 
 Deno.test('buildClaudeCommand - includes resume flag', () => {
@@ -63,5 +63,6 @@ Deno.test('buildClaudeCommand - includes working directory', () => {
     workingDir: '/project',
   });
 
-  assertStringIncludes(cmd, 'cd /project');
+  // Working directory is shell-escaped with single quotes
+  assertStringIncludes(cmd, "cd '/project'");
 });

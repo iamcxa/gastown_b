@@ -1,5 +1,26 @@
 import type { RoleName } from '../types.ts';
 
+/**
+ * Escape a string for safe use in shell single quotes.
+ * Uses the pattern: replace ' with '\'' (end quote, escaped quote, start quote)
+ */
+export function shellEscape(str: string): string {
+  return "'" + str.replace(/'/g, "'\\''") + "'";
+}
+
+/**
+ * Escape a string for use in shell double quotes.
+ * Escapes: $ ` \ " !
+ */
+export function shellEscapeDouble(str: string): string {
+  return str
+    .replace(/\\/g, '\\\\')
+    .replace(/"/g, '\\"')
+    .replace(/\$/g, '\\$')
+    .replace(/`/g, '\\`')
+    .replace(/!/g, '\\!');
+}
+
 export interface ClaudeCommandOptions {
   role: RoleName;
   agentDir: string;
@@ -54,20 +75,23 @@ export function buildClaudeCommand(options: ClaudeCommandOptions): string {
     args.push('--resume');
   }
 
-  // Prompt
-  if (prompt) {
-    args.push('--prompt', `"${prompt.replace(/"/g, '\\"')}"`);
-  }
+  // Prompt - pass as positional argument at the end
+  // (added later after other args)
 
   // Extra args
   args.push(...extraArgs);
+
+  // Prompt as positional argument (must be last)
+  if (prompt) {
+    args.push(shellEscape(prompt));
+  }
 
   // Build full command
   let command = `${envString} ${args.join(' ')}`;
 
   // Wrap with cd if working directory specified
   if (workingDir) {
-    command = `cd ${workingDir} && ${command}`;
+    command = `cd ${shellEscape(workingDir)} && ${command}`;
   }
 
   return command;

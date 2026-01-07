@@ -1,13 +1,20 @@
 export type SplitDirection = 'horizontal' | 'vertical';
 
+/**
+ * Escape a string for safe use in shell single quotes.
+ */
+function shellEscape(str: string): string {
+  return "'" + str.replace(/'/g, "'\\''") + "'";
+}
+
 export function buildTmuxCommand(args: string[]): string {
   return `tmux ${args.join(' ')}`;
 }
 
 export function buildNewSessionCommand(sessionName: string, command?: string): string {
-  const args = ['new-session', '-d', '-s', sessionName];
+  const args = ['new-session', '-d', '-s', shellEscape(sessionName)];
   if (command) {
-    args.push(`"${command}"`);
+    args.push(shellEscape(command));
   }
   return buildTmuxCommand(args);
 }
@@ -18,7 +25,7 @@ export function buildSplitPaneCommand(
   direction: SplitDirection = 'horizontal'
 ): string {
   const dirFlag = direction === 'horizontal' ? '-h' : '-v';
-  return buildTmuxCommand(['split-window', '-t', sessionName, dirFlag, `"${command}"`]);
+  return buildTmuxCommand(['split-window', '-t', shellEscape(sessionName), dirFlag, shellEscape(command)]);
 }
 
 export function buildSelectPaneCommand(sessionName: string, paneIndex: string): string {
@@ -31,7 +38,7 @@ export function buildRenamePaneCommand(sessionName: string, paneIndex: string, t
     '-t',
     `${sessionName}:0.${paneIndex}`,
     '-T',
-    `"${title}"`,
+    shellEscape(title),
   ]);
 }
 
@@ -40,11 +47,11 @@ export function buildKillPaneCommand(sessionName: string, paneIndex: string): st
 }
 
 export function buildKillSessionCommand(sessionName: string): string {
-  return buildTmuxCommand(['kill-session', '-t', sessionName]);
+  return buildTmuxCommand(['kill-session', '-t', shellEscape(sessionName)]);
 }
 
 export function buildAttachCommand(sessionName: string): string {
-  return buildTmuxCommand(['attach-session', '-t', sessionName]);
+  return buildTmuxCommand(['attach-session', '-t', shellEscape(sessionName)]);
 }
 
 export function buildListSessionsCommand(): string {
@@ -56,7 +63,7 @@ export function buildListPanesCommand(sessionName: string): string {
 }
 
 export function buildSendKeysCommand(sessionName: string, paneIndex: string, keys: string): string {
-  return buildTmuxCommand(['send-keys', '-t', `${sessionName}:0.${paneIndex}`, `"${keys}"`, 'Enter']);
+  return buildTmuxCommand(['send-keys', '-t', `${sessionName}:0.${paneIndex}`, shellEscape(keys), 'Enter']);
 }
 
 export function parseSessionList(output: string): string[] {
@@ -74,8 +81,19 @@ export function parsePaneList(output: string): Array<{ index: string; title: str
   });
 }
 
+// Debug mode - set GASTOWN_DEBUG=1 to enable verbose logging
+const DEBUG = Deno.env.get('GASTOWN_DEBUG') === '1';
+
+function debug(message: string, ...args: unknown[]): void {
+  if (DEBUG) {
+    console.error('[DEBUG]', message, ...args);
+  }
+}
+
 // Execution helpers
 export async function runTmuxCommand(command: string): Promise<{ success: boolean; output: string }> {
+  debug('Running tmux command:', command);
+
   try {
     const process = new Deno.Command('sh', {
       args: ['-c', command],
@@ -84,10 +102,17 @@ export async function runTmuxCommand(command: string): Promise<{ success: boolea
     });
 
     const { code, stdout, stderr } = await process.output();
-    const output = new TextDecoder().decode(code === 0 ? stdout : stderr);
+    const stdoutStr = new TextDecoder().decode(stdout);
+    const stderrStr = new TextDecoder().decode(stderr);
+    const output = code === 0 ? stdoutStr : stderrStr;
+
+    debug('tmux exit code:', code);
+    if (stdoutStr) debug('tmux stdout:', stdoutStr);
+    if (stderrStr) debug('tmux stderr:', stderrStr);
 
     return { success: code === 0, output: output.trim() };
   } catch (error) {
+    debug('tmux error:', error);
     return { success: false, output: String(error) };
   }
 }
