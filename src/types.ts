@@ -21,6 +21,7 @@ export interface BdFile {
   path: string;
   convoyName: string;
   convoyDescription: string;
+  contextPath?: string; // Path to convoy-context.md for autopilot guidance
   meta: Record<string, string>;
   sections: BdSection[];
 }
@@ -35,6 +36,7 @@ export interface Convoy {
   name: string;
   task: string;
   bdPath: string;
+  contextPath?: string; // Path to convoy-context.md for autopilot mode
   tmuxSession: string;
   maxWorkers: number;
 }

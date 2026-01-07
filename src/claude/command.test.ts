@@ -66,3 +66,28 @@ Deno.test('buildClaudeCommand - includes working directory', () => {
   // Working directory is shell-escaped with single quotes
   assertStringIncludes(cmd, "cd '/project'");
 });
+
+Deno.test('buildClaudeEnvVars - includes context path when provided', () => {
+  const env = buildClaudeEnvVars('mayor', '/convoy.bd', 'convoy-test', '/context.md');
+  assertEquals(env['GASTOWN_ROLE'], 'mayor');
+  assertEquals(env['GASTOWN_BD'], '/convoy.bd');
+  assertEquals(env['GASTOWN_CONVOY'], 'convoy-test');
+  assertEquals(env['GASTOWN_CONTEXT'], '/context.md');
+});
+
+Deno.test('buildClaudeEnvVars - omits context path when not provided', () => {
+  const env = buildClaudeEnvVars('mayor', '/convoy.bd', 'convoy-test');
+  assertEquals(env['GASTOWN_CONTEXT'], undefined);
+});
+
+Deno.test('buildClaudeCommand - includes context env var for autopilot mode', () => {
+  const cmd = buildClaudeCommand({
+    role: 'mayor',
+    agentDir: '/agents',
+    bdPath: '/test.bd',
+    convoyName: 'test',
+    contextPath: '/path/to/context.md',
+  });
+
+  assertStringIncludes(cmd, 'GASTOWN_CONTEXT=/path/to/context.md');
+});

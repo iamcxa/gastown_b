@@ -26,6 +26,7 @@ export interface ClaudeCommandOptions {
   agentDir: string;
   bdPath: string;
   convoyName: string;
+  contextPath?: string; // Path to convoy-context.md for autopilot mode
   prompt?: string;
   resume?: boolean;
   workingDir?: string;
@@ -39,13 +40,18 @@ export function buildAgentFlag(role: RoleName, agentDir: string): string {
 export function buildClaudeEnvVars(
   role: RoleName,
   bdPath: string,
-  convoyName: string
+  convoyName: string,
+  contextPath?: string
 ): Record<string, string> {
-  return {
+  const vars: Record<string, string> = {
     GASTOWN_ROLE: role,
     GASTOWN_BD: bdPath,
     GASTOWN_CONVOY: convoyName,
   };
+  if (contextPath) {
+    vars.GASTOWN_CONTEXT = contextPath;
+  }
+  return vars;
 }
 
 export function buildClaudeCommand(options: ClaudeCommandOptions): string {
@@ -54,13 +60,14 @@ export function buildClaudeCommand(options: ClaudeCommandOptions): string {
     agentDir,
     bdPath,
     convoyName,
+    contextPath,
     prompt,
     resume,
     workingDir,
     extraArgs = [],
   } = options;
 
-  const envVars = buildClaudeEnvVars(role, bdPath, convoyName);
+  const envVars = buildClaudeEnvVars(role, bdPath, convoyName, contextPath);
   const envString = Object.entries(envVars)
     .map(([key, value]) => `${key}=${value}`)
     .join(' ');
@@ -97,12 +104,16 @@ export function buildClaudeCommand(options: ClaudeCommandOptions): string {
   return command;
 }
 
-export function buildRolePrompt(role: RoleName, task: string, checkpoint?: string): string {
-  const prompts: Record<RoleName, (task: string, checkpoint?: string) => string> = {
-    mayor: (task) =>
-      `You are the Mayor coordinating this convoy. The task is: "${task}". ` +
-      `Read the bd file at $GASTOWN_BD to understand current state. ` +
-      `Delegate to Planner for brainstorming, then Foreman for implementation planning.`,
+export function buildRolePrompt(role: RoleName, task: string, checkpoint?: string, contextPath?: string): string {
+  const prompts: Record<RoleName, (task: string, checkpoint?: string, contextPath?: string) => string> = {
+    mayor: (task, _checkpoint, contextPath) =>
+      contextPath
+        ? `You are the Mayor coordinating this convoy in AUTOPILOT MODE. The task is: "${task}". ` +
+          `Read the context file at $GASTOWN_CONTEXT for pre-defined answers and decision principles. ` +
+          `Read the bd file at $GASTOWN_BD for current state. Proceed without asking user unless blocked.`
+        : `You are the Mayor coordinating this convoy. The task is: "${task}". ` +
+          `Read the bd file at $GASTOWN_BD to understand current state. ` +
+          `Delegate to Planner for brainstorming, then Foreman for implementation planning.`,
 
     planner: (task) =>
       `You are the Planner. Use superpowers:brainstorming to design: "${task}". ` +
@@ -135,5 +146,5 @@ export function buildRolePrompt(role: RoleName, task: string, checkpoint?: strin
       `Look for improvements, security issues, and code smells. Update bd file.`,
   };
 
-  return prompts[role](task, checkpoint);
+  return prompts[role](task, checkpoint, contextPath);
 }

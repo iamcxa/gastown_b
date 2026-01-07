@@ -13,19 +13,34 @@ import type { BdFile } from '../types.ts';
 export interface StartOptions {
   maxWorkers?: number;
   projectDir?: string;
+  contextPath?: string; // Path to convoy-context.md for autopilot mode
 }
 
 export async function startConvoy(task: string, options: StartOptions = {}): Promise<void> {
   const projectDir = options.projectDir || Deno.cwd();
   const config = await loadConfig(projectDir);
   const maxWorkers = options.maxWorkers || config.maxWorkers;
+  const contextPath = options.contextPath;
 
   console.log(`Starting convoy for: "${task}"`);
   console.log(`Max workers: ${maxWorkers}`);
+  if (contextPath) {
+    console.log(`Autopilot mode: ${contextPath}`);
+  }
 
   const bd = createNewBd(task, maxWorkers);
   const bdPath = `${projectDir}/${bd.path}`;
   bd.path = bdPath;
+
+  // Store context path in bd meta for resume
+  if (contextPath) {
+    bd.contextPath = contextPath;
+    bd.meta['context-path'] = contextPath;
+    bd.meta['mode'] = 'autopilot';
+  } else {
+    bd.meta['mode'] = 'manual';
+  }
+
   await writeBdFile(bd);
   console.log(`Created bd file: ${bd.path}`);
 
@@ -36,7 +51,7 @@ export async function startConvoy(task: string, options: StartOptions = {}): Pro
     return;
   }
 
-  const success = await launchMayor(sessionName, projectDir, bdPath, bd.convoyName, task);
+  const success = await launchMayor(sessionName, projectDir, bdPath, bd.convoyName, task, contextPath);
 
   if (!success) {
     console.error('Failed to start convoy');
@@ -65,12 +80,19 @@ export async function resumeConvoy(bdPath: string): Promise<void> {
   const projectDir = Deno.cwd();
   await loadConfig(projectDir);
 
+  // Get context path from bd meta (for autopilot mode)
+  const contextPath = bd.contextPath || bd.meta['context-path'];
+  if (contextPath) {
+    console.log(`Resuming in autopilot mode: ${contextPath}`);
+  }
+
   const success = await launchMayor(
     sessionName,
     projectDir,
     bdPath,
     bd.convoyName,
-    bd.convoyDescription
+    bd.convoyDescription,
+    contextPath
   );
 
   if (!success) {

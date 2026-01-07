@@ -10,6 +10,7 @@ export interface LaunchConfig {
   convoyName: string;
   task: string;
   checkpoint?: string;
+  contextPath?: string; // Path to convoy-context.md for autopilot mode
   agentsDir?: string; // Override agent directory
 }
 
@@ -69,13 +70,14 @@ export function getRoleAgentPath(role: RoleName, agentDir: string): string {
 
 export function buildLaunchConfig(config: LaunchConfig): ClaudeCommandOptions {
   const agentDir = getDefaultAgentDir(config.projectDir, config.role, config.agentsDir);
-  const prompt = buildRolePrompt(config.role, config.task, config.checkpoint);
+  const prompt = buildRolePrompt(config.role, config.task, config.checkpoint, config.contextPath);
 
   return {
     role: config.role,
     agentDir,
     bdPath: config.bdPath,
     convoyName: config.convoyName,
+    contextPath: config.contextPath,
     prompt,
     resume: config.checkpoint !== undefined,
     workingDir: config.projectDir,
@@ -102,7 +104,8 @@ export async function launchMayor(
   projectDir: string,
   bdPath: string,
   convoyName: string,
-  task: string
+  task: string,
+  contextPath?: string
 ): Promise<boolean> {
   return await launchRole(
     sessionName,
@@ -112,6 +115,7 @@ export async function launchMayor(
       bdPath,
       convoyName,
       task,
+      contextPath,
     },
     true
   );
