@@ -41,11 +41,13 @@ USAGE:
   gastown init                      Initialize gastown in project
 
 OPTIONS:
-  --max-workers <n>    Maximum parallel workers (default: 3)
-  --context <file>     Path to convoy-context.md for autopilot mode
-  --prime, -p          Enable Prime Minister mode (autonomous convoy)
-  --help, -h           Show this help
-  --version, -v        Show version
+  --max-workers <n>       Maximum parallel workers (default: 3)
+  --context <file>        Path to convoy-context.md for autopilot mode
+  --prime, -p             Enable Prime Minister mode (autonomous convoy)
+  --mayor-model <model>   Model for Mayor (opus, sonnet, haiku). Default: sonnet
+  --prime-model <model>   Model for Prime Minister (opus, sonnet, haiku). Default: sonnet
+  --help, -h              Show this help
+  --version, -v           Show version
 
 MODES:
   Mayor Mode (default):
@@ -71,6 +73,8 @@ EXAMPLES:
   gastown --prime --context auth-context.md "Implement auth"
   gastown -p -c auth-context.md "Implement auth"
   gastown --max-workers 5 "Refactor payment module"
+  gastown --mayor-model haiku "Simple documentation task"
+  gastown --prime --prime-model opus "Complex architecture design"
   gastown --resume convoy-2026-01-07.bd
   gastown --status
   gastown attach convoy-2026-01-07
@@ -80,7 +84,7 @@ EXAMPLES:
 
 async function main(): Promise<void> {
   const args = parseArgs(Deno.args, {
-    string: ['resume', 'status', 'max-workers', 'context'],
+    string: ['resume', 'status', 'max-workers', 'context', 'mayor-model', 'prime-model'],
     boolean: ['help', 'version', 'archive', 'prime'],
     alias: {
       h: 'help',
@@ -129,10 +133,27 @@ async function main(): Promise<void> {
 
   if (command) {
     const task = [command, ...rest].join(' ');
+
+    // Validate model options
+    const validModels = ['opus', 'sonnet', 'haiku'];
+    const mayorModel = args['mayor-model'];
+    const primeModel = args['prime-model'];
+
+    if (mayorModel && !validModels.includes(mayorModel)) {
+      console.error(`Invalid --mayor-model: ${mayorModel}. Valid options: ${validModels.join(', ')}`);
+      Deno.exit(1);
+    }
+    if (primeModel && !validModels.includes(primeModel)) {
+      console.error(`Invalid --prime-model: ${primeModel}. Valid options: ${validModels.join(', ')}`);
+      Deno.exit(1);
+    }
+
     await startConvoy(task, {
       maxWorkers: args['max-workers'] ? parseInt(args['max-workers']) : undefined,
       contextPath: args.context,
       primeMode: args.prime,
+      mayorModel: mayorModel as 'opus' | 'sonnet' | 'haiku' | undefined,
+      primeModel: primeModel as 'opus' | 'sonnet' | 'haiku' | undefined,
     });
     return;
   }

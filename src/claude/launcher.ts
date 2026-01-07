@@ -15,6 +15,7 @@ export interface LaunchConfig {
   mayorPaneIndex?: string; // Pane index where Mayor is running (for Prime Minister)
   primeMode?: boolean; // Whether Prime Minister mode is active (affects Mayor's prompt)
   dangerouslySkipPermissions?: boolean; // Skip all permission prompts (use with caution!)
+  model?: import('./command.ts').ClaudeModel; // Model to use (opus, sonnet, haiku)
 }
 
 /**
@@ -86,6 +87,7 @@ export function buildLaunchConfig(config: LaunchConfig): ClaudeCommandOptions {
     resume: config.checkpoint !== undefined,
     workingDir: config.projectDir,
     dangerouslySkipPermissions: config.dangerouslySkipPermissions,
+    model: config.model,
   };
 }
 
@@ -111,7 +113,8 @@ export async function launchMayor(
   convoyName: string,
   task: string,
   contextPath?: string,
-  primeMode?: boolean
+  primeMode?: boolean,
+  model?: import('./command.ts').ClaudeModel
 ): Promise<boolean> {
   return await launchRole(
     sessionName,
@@ -123,6 +126,7 @@ export async function launchMayor(
       task,
       contextPath,
       primeMode,
+      model,
     },
     true
   );
@@ -139,6 +143,7 @@ export async function launchMayor(
  * @param task - task description
  * @param contextPath - path to convoy-context.md (required for PM to answer questions)
  * @param mayorPaneIndex - pane index where Mayor is running (default: '0')
+ * @param model - model to use (opus, sonnet, haiku)
  */
 export async function launchPrime(
   sessionName: string,
@@ -147,7 +152,8 @@ export async function launchPrime(
   convoyName: string,
   task: string,
   contextPath: string,
-  mayorPaneIndex: string = '0'
+  mayorPaneIndex: string = '0',
+  model?: import('./command.ts').ClaudeModel
 ): Promise<boolean> {
   return await launchRole(
     sessionName,
@@ -160,6 +166,7 @@ export async function launchPrime(
       contextPath,
       mayorPaneIndex,
       dangerouslySkipPermissions: true, // PM operates autonomously without permission prompts
+      model,
     },
     false // Not first pane - splits from existing session
   );

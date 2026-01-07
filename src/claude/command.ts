@@ -21,6 +21,8 @@ export function shellEscapeDouble(str: string): string {
     .replace(/!/g, '\\!');
 }
 
+export type ClaudeModel = 'opus' | 'sonnet' | 'haiku';
+
 export interface ClaudeCommandOptions {
   role: RoleName;
   agentDir: string;
@@ -33,6 +35,7 @@ export interface ClaudeCommandOptions {
   workingDir?: string;
   extraArgs?: string[];
   dangerouslySkipPermissions?: boolean; // Skip all permission prompts (use with caution!)
+  model?: ClaudeModel; // Model to use (opus, sonnet, haiku). Default: sonnet
 }
 
 export function buildAgentFlag(role: RoleName, agentDir: string): string {
@@ -73,6 +76,7 @@ export function buildClaudeCommand(options: ClaudeCommandOptions): string {
     workingDir,
     extraArgs = [],
     dangerouslySkipPermissions,
+    model,
   } = options;
 
   const envVars = buildClaudeEnvVars(role, bdPath, convoyName, contextPath, mayorPaneIndex);
@@ -93,6 +97,11 @@ export function buildClaudeCommand(options: ClaudeCommandOptions): string {
   // Dangerously skip permissions flag (for autonomous operation)
   if (dangerouslySkipPermissions) {
     args.push('--dangerously-skip-permissions');
+  }
+
+  // Model flag (opus, sonnet, haiku)
+  if (model) {
+    args.push(`--model ${model}`);
   }
 
   // Prompt - pass as positional argument at the end
