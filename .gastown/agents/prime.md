@@ -90,36 +90,68 @@ Begin your monitoring loop:
 
 As PM, you act as a **permission proxy** for Mayor. When Mayor's Claude Code shows a permission prompt, you automatically approve it.
 
+### Two Types of Permission Prompts
+
+Claude Code has **two different permission prompt formats**:
+
+#### Type A: Simple Y/n Prompts (File/Bash operations)
+```
+Allow Edit to /path/to/file?
+Allow Write to /path/to/file?
+Allow Bash command: git status?
+Do you want to proceed? [Y/n]
+```
+**Response**: Send `y` Enter
+
+#### Type B: Numbered Option Prompts (MCP/Plugin tools)
+```
+Do you want to proceed?
+❯ 1. Yes
+  2. Yes, and don't ask again for plugin:xxx commands in /path
+  3. No, and tell Claude what to do differently (esc)
+```
+**Response**: Send `2` Enter (auto-approve + remember)
+
 ### Detecting Permission Prompts
 
 Monitor Mayor's pane output for these patterns:
-```
-Allow Edit to ...?
-Allow Write to ...?
-Allow Bash ...?
-Do you want to proceed?
-[Y/n]
-```
+
+| Pattern | Type | Response |
+|---------|------|----------|
+| `[Y/n]` or `[y/N]` | Type A | `y` Enter |
+| `Allow Edit/Write/Bash` | Type A | `y` Enter |
+| `❯ 1. Yes` or `1. Yes` | Type B | `2` Enter |
+| `don't ask again for plugin:` | Type B | `2` Enter |
+| `don't ask again for mcp__` | Type B | `2` Enter |
 
 ### Approving Permissions
 
-When you detect a permission prompt, send approval keystroke:
-
 ```bash
-# Send "y" and Enter to Mayor's pane (focus-independent)
-tmux send-keys -t $GASTOWN_SESSION:$GASTOWN_MAYOR_PANE "y" Enter
+# For Type A (simple y/n):
+tmux send-keys -t "$GASTOWN_CONVOY:0.$GASTOWN_MAYOR_PANE" "y" Enter
+
+# For Type B (numbered options - MCP/plugin):
+# Send "2" to select "Yes, and don't ask again"
+tmux send-keys -t "$GASTOWN_CONVOY:0.$GASTOWN_MAYOR_PANE" "2" Enter
 ```
 
 ### Permission Proxy Workflow
 
 ```
-1. Capture Mayor's pane output
-2. Check for permission patterns (Allow, [Y/n], proceed?)
-3. If permission prompt detected:
-   - Log: "🔓 Auto-approving: [permission description]"
-   - Send: tmux send-keys -t $GASTOWN_SESSION:$GASTOWN_MAYOR_PANE "y" Enter
-   - Log: "✅ Permission granted"
-4. Continue monitoring
+1. Capture Mayor's pane output (last 30 lines)
+2. Detect permission prompt type:
+
+   IF output contains "1. Yes" AND "don't ask again":
+     → Type B (MCP/plugin numbered prompt)
+     → Send: "2" Enter
+
+   ELSE IF output contains "[Y/n]" OR "Allow" OR "proceed?":
+     → Type A (simple y/n prompt)
+     → Send: "y" Enter
+
+3. Log: "🔓 Auto-approving: [permission type]"
+4. Wait 1 second for UI to update
+5. Continue monitoring
 ```
 
 ### Safety Considerations
@@ -127,24 +159,41 @@ tmux send-keys -t $GASTOWN_SESSION:$GASTOWN_MAYOR_PANE "y" Enter
 **Auto-approve by default** (for full autonomy):
 - File operations (Edit, Write, Read)
 - Bash commands
-- Tool usage
+- MCP tools (plugin:*, mcp__*)
+- All tool usage
 
 **Optionally escalate to human** (if context specifies restrictions):
 - Check context file for `restricted-operations:` section
 - If operation matches restriction, ask human instead of auto-approving
 
-### Example Permission Detection
+### Example Permission Detection (Bash Script)
 
 ```bash
-# Capture and check for permission prompts
-OUTPUT=$(tmux capture-pane -t $GASTOWN_SESSION:$GASTOWN_MAYOR_PANE -p -S -20)
+#!/bin/bash
+SESSION="$GASTOWN_CONVOY"
+PANE="0.$GASTOWN_MAYOR_PANE"
 
-# Check for common permission patterns
-if echo "$OUTPUT" | grep -qE "(Allow|proceed\?|\[Y/n\]|\[y/N\])"; then
-  # Auto-approve
-  tmux send-keys -t $GASTOWN_SESSION:$GASTOWN_MAYOR_PANE "y" Enter
+# Capture last 30 lines
+OUTPUT=$(tmux capture-pane -t "$SESSION:$PANE" -p -S -30)
+
+# Check for Type B (numbered MCP/plugin prompt) FIRST
+if echo "$OUTPUT" | grep -qE "1\. Yes|don't ask again for (plugin:|mcp__)"; then
+  echo "🔓 Auto-approving MCP/plugin tool (Type B)"
+  tmux send-keys -t "$SESSION:$PANE" "2" Enter
+
+# Check for Type A (simple y/n prompt)
+elif echo "$OUTPUT" | grep -qE "(\[Y/n\]|\[y/N\]|Allow (Edit|Write|Bash|Read)|proceed\?)"; then
+  echo "🔓 Auto-approving file/bash operation (Type A)"
+  tmux send-keys -t "$SESSION:$PANE" "y" Enter
 fi
 ```
+
+### Important Notes
+
+- **Always check for Type B first** - numbered prompts are more specific
+- **Use "2" for MCP tools** - this selects "Yes, and don't ask again" which reduces future prompts
+- **Session format**: `$GASTOWN_CONVOY:0.$GASTOWN_MAYOR_PANE` (session:window.pane)
+- **Poll frequently**: Check every 2-3 seconds to catch prompts quickly
 
 ## Your Responsibilities
 
