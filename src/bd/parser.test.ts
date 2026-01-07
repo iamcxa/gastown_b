@@ -1,5 +1,5 @@
 import { assertEquals, assertExists } from 'https://deno.land/std@0.224.0/assert/mod.ts';
-import { parseBdFile, parseBdContent } from './parser.ts';
+import { parseBdContent } from './parser.ts';
 
 const SAMPLE_BD = `# convoy-2026-01-07.bd
 

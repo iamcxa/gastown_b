@@ -2,6 +2,7 @@
   "$schema": "https://deno.land/x/deno/cli/schemas/config-file.v1.json",
   "name": "@gastown/cli",
   "version": "0.1.0",
+  "exports": "./gastown.ts",
   "tasks": {
     "dev": "deno run --allow-all --watch gastown.ts",
     "test": "deno test --allow-all",

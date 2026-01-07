@@ -1,6 +1,6 @@
 import { assertEquals } from 'https://deno.land/std@0.224.0/assert/mod.ts';
 import { buildDependencyGraph, getNextTasks, hasCircularDependency } from './deps.ts';
-import type { BdFile, BdTask } from '../types.ts';
+import type { BdFile } from '../types.ts';
 
 // Create a minimal BdFile for testing (without default tasks from createNewBd)
 function createTestBd(): BdFile {

@@ -1,11 +1,9 @@
 import { assertEquals, assertStringIncludes } from 'https://deno.land/std@0.224.0/assert/mod.ts';
 import {
-  buildTmuxCommand,
   buildNewSessionCommand,
   buildSplitPaneCommand,
   buildKillPaneCommand,
   buildAttachCommand,
-  buildListSessionsCommand,
   parseSessionList,
 } from './operations.ts';
 

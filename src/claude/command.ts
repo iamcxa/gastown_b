@@ -84,7 +84,7 @@ export function buildRolePrompt(role: RoleName, task: string, checkpoint?: strin
       `You are the Planner. Use superpowers:brainstorming to design: "${task}". ` +
       `Update the bd file with your progress. Output design doc to docs/plans/.`,
 
-    foreman: (task, checkpoint) =>
+    foreman: (_task, checkpoint) =>
       checkpoint
         ? `You are the Foreman. Continue from checkpoint: "${checkpoint}". ` +
           `Read the design doc and create implementation tasks in the bd file.`

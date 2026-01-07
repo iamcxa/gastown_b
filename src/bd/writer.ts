@@ -1,4 +1,4 @@
-import type { BdFile, BdTask, BdSection, RoleName } from '../types.ts';
+import type { BdFile, RoleName } from '../types.ts';
 
 function capitalize(str: string): string {
   return str.charAt(0).toUpperCase() + str.slice(1);

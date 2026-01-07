@@ -1,5 +1,5 @@
-import type { BdFile, BdTask, RoleName } from '../types.ts';
-import { getNextTasks, hasCircularDependency, getBlockedTasks } from './deps.ts';
+import type { BdFile } from '../types.ts';
+import { getNextTasks, hasCircularDependency } from './deps.ts';
 import { updateTaskStatus, updateTaskNote, findTaskById } from '../bd/operations.ts';
 import { writeBdFile } from '../bd/writer.ts';
 import { launchWorker, respawnWorker } from '../claude/launcher.ts';
@@ -102,7 +102,7 @@ export async function handleRespawnRequest(
   taskId: string,
   checkpoint: string
 ): Promise<SchedulerState> {
-  const { bd, config, activeWorkers } = state;
+  const { bd, config } = state;
 
   const task = findTaskById(bd, taskId);
   if (!task) return state;

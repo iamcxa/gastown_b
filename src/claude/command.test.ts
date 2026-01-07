@@ -4,8 +4,6 @@ import {
   buildClaudeEnvVars,
   buildAgentFlag,
 } from './command.ts';
-import type { RoleName } from '../types.ts';
-
 Deno.test('buildAgentFlag - returns correct flag for role', () => {
   assertEquals(buildAgentFlag('mayor', '/path/to/agents'), '--agent /path/to/agents/mayor.md');
   assertEquals(buildAgentFlag('polecat', '/path'), '--agent /path/polecat.md');

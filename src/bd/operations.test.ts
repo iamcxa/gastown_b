@@ -9,7 +9,7 @@ import {
   getActiveWorkerCount,
 } from './operations.ts';
 import { createNewBd } from './writer.ts';
-import type { BdFile, BdTask } from '../types.ts';
+import type { BdTask } from '../types.ts';
 
 Deno.test('updateTaskStatus - changes task status', () => {
   const bd = createNewBd('Test', 3);

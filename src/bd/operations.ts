@@ -1,4 +1,4 @@
-import type { BdFile, BdTask, BdNote, TaskStatus } from '../types.ts';
+import type { BdFile, BdTask, TaskStatus } from '../types.ts';
 
 export function findTaskById(bd: BdFile, taskId: string): BdTask | undefined {
   const normalizedId = taskId.toLowerCase();
