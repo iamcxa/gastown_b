@@ -5,6 +5,8 @@ import {
   setAgentState,
   getAgentState,
   updateHeartbeat,
+  getAgentBead,
+  listAgentBeads,
 } from './agent.ts';
 import { execBd } from './executor.ts';
 
@@ -39,6 +41,27 @@ Deno.test('updateHeartbeat updates timestamp', async () => {
 
   // Should not throw
   await updateHeartbeat(agent.id);
+
+  await execBd(['close', agent.id, '--reason', 'Test cleanup']);
+});
+
+Deno.test('getAgentBead retrieves agent details', async () => {
+  const agent = await createAgentBead({ role: 'foreman' });
+
+  const fetched = await getAgentBead(agent.id);
+  assertEquals(fetched.id, agent.id);
+  assertEquals(fetched.role, 'foreman');
+
+  await execBd(['close', agent.id, '--reason', 'Test cleanup']);
+});
+
+Deno.test('listAgentBeads lists agents', async () => {
+  const agent = await createAgentBead({ role: 'dog' });
+
+  const agents = await listAgentBeads();
+  const found = agents.find((a) => a.id === agent.id);
+  assertExists(found);
+  assertEquals(found?.role, 'dog');
 
   await execBd(['close', agent.id, '--reason', 'Test cleanup']);
 });

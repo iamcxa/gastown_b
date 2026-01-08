@@ -1,6 +1,9 @@
 // src/bd-cli/agent.ts
 import { execBd, execBdJson } from './executor.ts';
 
+const AGENT_LABEL = 'gt:agent';
+const ROLE_PREFIX = 'role:';
+
 export type AgentState = 'idle' | 'spawning' | 'running' | 'working' | 'stuck' | 'done' | 'stopped' | 'dead';
 export type RoleName = 'mayor' | 'planner' | 'foreman' | 'polecat' | 'witness' | 'dog' | 'refinery' | 'prime';
 
@@ -40,7 +43,7 @@ export async function createAgentBead(options: AgentCreateOptions): Promise<Agen
 
   // Use 'task' type with agent labels since 'agent' type requires special db setup
   // The gt:agent label marks this as an agent bead, role:<name> identifies the role
-  const labels = [`gt:agent`, `role:${options.role}`];
+  const labels = [AGENT_LABEL, `${ROLE_PREFIX}${options.role}`];
 
   const args = [
     'create',
@@ -84,10 +87,14 @@ export async function getAgentBead(agentId: string): Promise<AgentBead> {
   let role: RoleName = 'polecat';
   if (result.role_type) {
     role = result.role_type as RoleName;
-  } else if (result.labels) {
-    const roleLabel = result.labels.find((l) => l.startsWith('role:'));
-    if (roleLabel) {
-      role = roleLabel.split(':')[1] as RoleName;
+  } else {
+    // bd agent show doesn't return labels, so fetch from bd show
+    const showResults = await execBdJson<BdListResult[]>(['show', agentId]);
+    if (showResults.length > 0 && showResults[0].labels) {
+      const roleLabel = showResults[0].labels.find((l) => l.startsWith(ROLE_PREFIX));
+      if (roleLabel) {
+        role = roleLabel.slice(ROLE_PREFIX.length) as RoleName;
+      }
     }
   }
 
@@ -100,7 +107,7 @@ export async function getAgentBead(agentId: string): Promise<AgentBead> {
 }
 
 export async function listAgentBeads(convoyId?: string): Promise<AgentBead[]> {
-  const args = ['list', '--label', 'gt:agent'];
+  const args = ['list', '--label', AGENT_LABEL];
   if (convoyId) {
     args.push('--parent', convoyId);
   }
@@ -110,8 +117,8 @@ export async function listAgentBeads(convoyId?: string): Promise<AgentBead[]> {
   // For each agent, we need to call getAgentBead to get the full state
   // but for listing, we'll use a simpler approach: parse labels and default state
   return results.map((r) => {
-    const roleLabel = r.labels?.find((l) => l.startsWith('role:'));
-    const role = (roleLabel?.split(':')[1] || 'polecat') as RoleName;
+    const roleLabel = r.labels?.find((l) => l.startsWith(ROLE_PREFIX));
+    const role = (roleLabel ? roleLabel.slice(ROLE_PREFIX.length) : 'polecat') as RoleName;
 
     return {
       id: r.id,
