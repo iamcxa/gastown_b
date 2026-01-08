@@ -2,7 +2,6 @@
 
 export interface BdExecOptions {
   cwd?: string;
-  silent?: boolean;
 }
 
 export async function execBd(
@@ -32,7 +31,11 @@ export async function execBdJson<T = unknown>(
   options: BdExecOptions = {}
 ): Promise<T> {
   const output = await execBd([...args, '--json'], options);
-  return JSON.parse(output) as T;
+  try {
+    return JSON.parse(output) as T;
+  } catch (_e) {
+    throw new Error(`Failed to parse bd output as JSON: ${output.slice(0, 100)}...`);
+  }
 }
 
 export async function execBdQuiet(

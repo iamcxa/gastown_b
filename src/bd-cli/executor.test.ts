@@ -1,6 +1,6 @@
 // src/bd-cli/executor.test.ts
 import { assertEquals, assertRejects } from 'https://deno.land/std@0.224.0/assert/mod.ts';
-import { execBd, execBdJson } from './executor.ts';
+import { execBd, execBdJson, execBdQuiet } from './executor.ts';
 
 Deno.test('execBd runs bd command and returns stdout', async () => {
   const result = await execBd(['--version']);
@@ -19,4 +19,9 @@ Deno.test('execBd throws on invalid command', async () => {
     Error,
     'bd command failed'
   );
+});
+
+Deno.test('execBdQuiet runs bd command with --quiet flag', async () => {
+  const result = await execBdQuiet(['--version']);
+  assertEquals(typeof result, 'string');
 });
