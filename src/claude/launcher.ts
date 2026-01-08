@@ -6,7 +6,7 @@ export interface LaunchConfig {
   role: RoleName;
   roleInstance?: number;
   projectDir: string;
-  bdPath: string;
+  convoyId: string;
   convoyName: string;
   task: string;
   checkpoint?: string;
@@ -78,7 +78,7 @@ export function buildLaunchConfig(config: LaunchConfig): ClaudeCommandOptions {
   return {
     role: config.role,
     agentDir,
-    bdPath: config.bdPath,
+    convoyId: config.convoyId,
     convoyName: config.convoyName,
     contextPath: config.contextPath,
     mayorPaneIndex: config.mayorPaneIndex,
@@ -107,7 +107,7 @@ export async function launchRole(
 export async function launchMayor(
   sessionName: string,
   projectDir: string,
-  bdPath: string,
+  convoyId: string,
   convoyName: string,
   task: string,
   contextPath?: string,
@@ -118,7 +118,7 @@ export async function launchMayor(
     {
       role: 'mayor',
       projectDir,
-      bdPath,
+      convoyId,
       convoyName,
       task,
       contextPath,
@@ -134,7 +134,7 @@ export async function launchMayor(
  *
  * @param sessionName - tmux session name
  * @param projectDir - project directory
- * @param bdPath - path to bd file
+ * @param convoyId - convoy issue ID
  * @param convoyName - convoy name
  * @param task - task description
  * @param contextPath - path to convoy-context.md (required for PM to answer questions)
@@ -143,7 +143,7 @@ export async function launchMayor(
 export async function launchPrime(
   sessionName: string,
   projectDir: string,
-  bdPath: string,
+  convoyId: string,
   convoyName: string,
   task: string,
   contextPath: string,
@@ -154,7 +154,7 @@ export async function launchPrime(
     {
       role: 'prime',
       projectDir,
-      bdPath,
+      convoyId,
       convoyName,
       task,
       contextPath,
@@ -170,7 +170,7 @@ export async function launchWorker(
   role: RoleName,
   roleInstance: number,
   projectDir: string,
-  bdPath: string,
+  convoyId: string,
   convoyName: string,
   task: string,
   checkpoint?: string
@@ -179,7 +179,7 @@ export async function launchWorker(
     role,
     roleInstance,
     projectDir,
-    bdPath,
+    convoyId,
     convoyName,
     task,
     checkpoint,
@@ -191,7 +191,7 @@ export async function respawnWorker(
   role: RoleName,
   roleInstance: number,
   projectDir: string,
-  bdPath: string,
+  convoyId: string,
   convoyName: string,
   task: string,
   checkpoint: string
@@ -201,7 +201,7 @@ export async function respawnWorker(
     role,
     roleInstance,
     projectDir,
-    bdPath,
+    convoyId,
     convoyName,
     task,
     checkpoint
