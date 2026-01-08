@@ -44,7 +44,8 @@ export function buildClaudeEnvVars(
   convoyId: string,
   convoyName: string,
   contextPath?: string,
-  mayorPaneIndex?: string
+  mayorPaneIndex?: string,
+  agentId?: string
 ): Record<string, string> {
   const vars: Record<string, string> = {
     GASTOWN_ROLE: role,
@@ -56,6 +57,9 @@ export function buildClaudeEnvVars(
   }
   if (mayorPaneIndex !== undefined) {
     vars.GASTOWN_MAYOR_PANE = mayorPaneIndex;
+  }
+  if (agentId) {
+    vars.GASTOWN_AGENT_ID = agentId;
   }
   return vars;
 }

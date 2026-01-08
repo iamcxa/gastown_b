@@ -119,3 +119,16 @@ Deno.test('buildClaudeCommand - includes mayor pane env var for prime role', () 
   assertStringIncludes(cmd, 'GASTOWN_MAYOR_PANE=0');
   assertStringIncludes(cmd, 'GASTOWN_CONTEXT=/path/to/context.md');
 });
+
+Deno.test('buildClaudeEnvVars - includes agent id when provided', () => {
+  const env = buildClaudeEnvVars('polecat', 'convoy-123', 'convoy-test', undefined, undefined, 'agent-456');
+  assertEquals(env['GASTOWN_ROLE'], 'polecat');
+  assertEquals(env['GASTOWN_BD'], 'convoy-123');
+  assertEquals(env['GASTOWN_CONVOY'], 'convoy-test');
+  assertEquals(env['GASTOWN_AGENT_ID'], 'agent-456');
+});
+
+Deno.test('buildClaudeEnvVars - omits agent id when not provided', () => {
+  const env = buildClaudeEnvVars('polecat', 'convoy-123', 'convoy-test');
+  assertEquals(env['GASTOWN_AGENT_ID'], undefined);
+});
