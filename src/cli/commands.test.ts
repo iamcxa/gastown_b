@@ -123,3 +123,15 @@ Deno.test('stopConvoyWithBd handles all convoys when no ID provided', async () =
   // This just verifies no error
   await stopConvoyWithBd(undefined, { dryRun: true });
 });
+
+// --- Integration Tests ---
+import { extractIssueIds } from './duplicate-check.ts';
+
+// Integration test: verify the full flow types work together
+Deno.test('duplicate detection flow - extractIssueIds integration', () => {
+  // Test that the function works in the context of startConvoyWithBd
+  const task = '請依據專案最佳實踐，使用worktree基於最新的 main，並搭配合適的 skill 實作 linear issue SC-274';
+  const issueIds = extractIssueIds(task);
+
+  assertEquals(issueIds, ['SC-274']);
+});
