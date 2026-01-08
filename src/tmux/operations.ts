@@ -22,17 +22,27 @@ export function buildNewSessionCommand(sessionName: string, command?: string): s
 export function buildSplitPaneCommand(
   sessionName: string,
   command: string,
-  direction: SplitDirection = 'horizontal'
+  direction: SplitDirection = 'horizontal',
 ): string {
   const dirFlag = direction === 'horizontal' ? '-h' : '-v';
-  return buildTmuxCommand(['split-window', '-t', shellEscape(sessionName), dirFlag, shellEscape(command)]);
+  return buildTmuxCommand([
+    'split-window',
+    '-t',
+    shellEscape(sessionName),
+    dirFlag,
+    shellEscape(command),
+  ]);
 }
 
 export function buildSelectPaneCommand(sessionName: string, paneIndex: string): string {
   return buildTmuxCommand(['select-pane', '-t', `${sessionName}:0.${paneIndex}`]);
 }
 
-export function buildRenamePaneCommand(sessionName: string, paneIndex: string, title: string): string {
+export function buildRenamePaneCommand(
+  sessionName: string,
+  paneIndex: string,
+  title: string,
+): string {
   return buildTmuxCommand([
     'select-pane',
     '-t',
@@ -63,7 +73,13 @@ export function buildListPanesCommand(sessionName: string): string {
 }
 
 export function buildSendKeysCommand(sessionName: string, paneIndex: string, keys: string): string {
-  return buildTmuxCommand(['send-keys', '-t', `${sessionName}:0.${paneIndex}`, shellEscape(keys), 'Enter']);
+  return buildTmuxCommand([
+    'send-keys',
+    '-t',
+    `${sessionName}:0.${paneIndex}`,
+    shellEscape(keys),
+    'Enter',
+  ]);
 }
 
 export function parseSessionList(output: string): string[] {
@@ -91,7 +107,9 @@ function debug(message: string, ...args: unknown[]): void {
 }
 
 // Execution helpers
-export async function runTmuxCommand(command: string): Promise<{ success: boolean; output: string }> {
+export async function runTmuxCommand(
+  command: string,
+): Promise<{ success: boolean; output: string }> {
   debug('Running tmux command:', command);
 
   try {
@@ -126,7 +144,7 @@ export async function createSession(sessionName: string, command?: string): Prom
 export async function splitPane(
   sessionName: string,
   command: string,
-  direction: SplitDirection = 'horizontal'
+  direction: SplitDirection = 'horizontal',
 ): Promise<boolean> {
   const cmd = buildSplitPaneCommand(sessionName, command, direction);
   const result = await runTmuxCommand(cmd);
@@ -176,7 +194,7 @@ export async function sessionExists(sessionName: string): Promise<boolean> {
 export function buildCapturePaneCommand(
   sessionName: string,
   paneIndex: string,
-  lines: number = 50
+  lines: number = 50,
 ): string {
   // -t target pane, -p print to stdout, -S start line (negative = from end)
   return buildTmuxCommand([
@@ -197,9 +215,35 @@ export function buildCapturePaneCommand(
 export async function capturePaneOutput(
   sessionName: string,
   paneIndex: string,
-  lines: number = 50
+  lines: number = 50,
 ): Promise<string> {
   const cmd = buildCapturePaneCommand(sessionName, paneIndex, lines);
   const result = await runTmuxCommand(cmd);
   return result.output;
+}
+
+/**
+ * Split window and return the new pane index.
+ * Creates a new pane and returns its index for tracking.
+ */
+export async function splitWindowAndGetIndex(
+  sessionName: string,
+  command: string,
+  direction: SplitDirection = 'horizontal',
+): Promise<{ success: boolean; paneIndex: number }> {
+  // Get current pane count
+  const listCmd = buildListPanesCommand(sessionName);
+  const beforeResult = await runTmuxCommand(listCmd);
+  const beforeCount = beforeResult.success ? parsePaneList(beforeResult.output).length : 0;
+
+  // Split the window
+  const splitCmd = buildSplitPaneCommand(sessionName, command, direction);
+  const splitResult = await runTmuxCommand(splitCmd);
+
+  if (!splitResult.success) {
+    return { success: false, paneIndex: -1 };
+  }
+
+  // The new pane index is the count before split (0-indexed)
+  return { success: true, paneIndex: beforeCount };
 }

@@ -1,10 +1,14 @@
 import { assertEquals, assertStringIncludes } from 'https://deno.land/std@0.224.0/assert/mod.ts';
 import {
+  buildAttachCommand,
+  buildKillPaneCommand,
   buildNewSessionCommand,
   buildSplitPaneCommand,
-  buildKillPaneCommand,
-  buildAttachCommand,
+  createSession,
+  killSession,
+  parsePaneList,
   parseSessionList,
+  splitWindowAndGetIndex,
 } from './operations.ts';
 
 Deno.test('buildNewSessionCommand - creates session with name', () => {
@@ -50,4 +54,36 @@ other-session: 1 windows (created Mon Jan  7 09:00:00 2026)`;
   assertEquals(sessions.length, 2);
   assertEquals(sessions[0], 'gastown-convoy1');
   assertEquals(sessions[1], 'gastown-convoy2');
+});
+
+Deno.test('parsePaneList parses pane output correctly', () => {
+  const output = `0:Mayor
+1:Planner`;
+  const panes = parsePaneList(output);
+  assertEquals(panes.length, 2);
+  assertEquals(panes[0].index, '0');
+  assertEquals(panes[0].title, 'Mayor');
+  assertEquals(panes[1].index, '1');
+  assertEquals(panes[1].title, 'Planner');
+});
+
+Deno.test({
+  name: 'splitWindowAndGetIndex returns pane index',
+  async fn() {
+    const sessionName = 'test-split-' + Date.now();
+
+    // Create test session
+    await createSession(sessionName, 'sleep 60');
+
+    // Split and get index
+    const result = await splitWindowAndGetIndex(sessionName, 'sleep 60', 'horizontal');
+
+    assertEquals(result.success, true);
+    assertEquals(result.paneIndex, 1); // Second pane after split
+
+    // Cleanup
+    await killSession(sessionName);
+  },
+  sanitizeResources: false,
+  sanitizeOps: false,
 });
