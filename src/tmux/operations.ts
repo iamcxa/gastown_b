@@ -1,3 +1,6 @@
+import { buildSessionInitCommands } from './status.ts';
+import type { RoleName } from '../types.ts';
+
 export type SplitDirection = 'horizontal' | 'vertical';
 
 /**
@@ -246,4 +249,32 @@ export async function splitWindowAndGetIndex(
 
   // The new pane index is the count before split (0-indexed)
   return { success: true, paneIndex: beforeCount };
+}
+
+/**
+ * Initialize tmux session with gastown status bar styling.
+ * Applies role-specific colors, icons, and status bar configuration.
+ *
+ * @param sessionName - tmux session name
+ * @param role - agent role (mayor, planner, etc.)
+ * @param convoyId - convoy ID for display
+ * @param task - task description for display
+ */
+export async function initSessionStyling(
+  sessionName: string,
+  role: RoleName,
+  convoyId: string,
+  task: string,
+): Promise<boolean> {
+  const commands = buildSessionInitCommands(sessionName, role, convoyId, task);
+
+  for (const cmd of commands) {
+    const result = await runTmuxCommand(cmd);
+    if (!result.success) {
+      debug('Failed to run styling command:', cmd, result.output);
+      // Continue anyway - styling is not critical
+    }
+  }
+
+  return true;
 }

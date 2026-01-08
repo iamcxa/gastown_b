@@ -1,6 +1,6 @@
 import type { RoleName } from '../types.ts';
 import { buildClaudeCommand, buildRolePrompt, type ClaudeCommandOptions } from './command.ts';
-import { splitPane, createSession } from '../tmux/operations.ts';
+import { createSession, initSessionStyling, splitPane } from '../tmux/operations.ts';
 
 export interface LaunchConfig {
   role: RoleName;
@@ -45,7 +45,11 @@ export function getGastownInstallDir(): string {
  * @param role - The role to look for (e.g., 'mayor', 'polecat')
  * @param agentsDir - Optional explicit agent directory override
  */
-export function getDefaultAgentDir(projectDir: string, role: string = 'mayor', agentsDir?: string): string {
+export function getDefaultAgentDir(
+  projectDir: string,
+  role: string = 'mayor',
+  agentsDir?: string,
+): string {
   // If explicitly set, use it
   if (agentsDir) {
     return agentsDir;
@@ -83,7 +87,13 @@ export function getGastownBinPath(): string {
 
 export function buildLaunchConfig(config: LaunchConfig): ClaudeCommandOptions {
   const agentDir = getDefaultAgentDir(config.projectDir, config.role, config.agentsDir);
-  const prompt = buildRolePrompt(config.role, config.task, config.checkpoint, config.contextPath, config.primeMode);
+  const prompt = buildRolePrompt(
+    config.role,
+    config.task,
+    config.checkpoint,
+    config.contextPath,
+    config.primeMode,
+  );
   // Auto-detect gastown binary path if not provided
   const gastownBinPath = config.gastownBinPath || getGastownBinPath();
 
@@ -105,7 +115,7 @@ export function buildLaunchConfig(config: LaunchConfig): ClaudeCommandOptions {
 export async function launchRole(
   sessionName: string,
   config: LaunchConfig,
-  isFirstPane: boolean = false
+  isFirstPane: boolean = false,
 ): Promise<boolean> {
   const cmdOptions = buildLaunchConfig(config);
   const command = buildClaudeCommand(cmdOptions);
@@ -124,9 +134,9 @@ export async function launchMayor(
   convoyName: string,
   task: string,
   contextPath?: string,
-  primeMode?: boolean
+  primeMode?: boolean,
 ): Promise<boolean> {
-  return await launchRole(
+  const success = await launchRole(
     sessionName,
     {
       role: 'mayor',
@@ -137,8 +147,15 @@ export async function launchMayor(
       contextPath,
       primeMode,
     },
-    true
+    true,
   );
+
+  // Apply status bar styling after session creation
+  if (success) {
+    await initSessionStyling(sessionName, 'mayor', convoyId, task);
+  }
+
+  return success;
 }
 
 /**
@@ -160,7 +177,7 @@ export async function launchPrime(
   convoyName: string,
   task: string,
   contextPath: string,
-  mayorPaneIndex: string = '0'
+  mayorPaneIndex: string = '0',
 ): Promise<boolean> {
   return await launchRole(
     sessionName,
@@ -174,7 +191,7 @@ export async function launchPrime(
       mayorPaneIndex,
       dangerouslySkipPermissions: true, // PM operates autonomously without permission prompts
     },
-    false // Not first pane - splits from existing session
+    false, // Not first pane - splits from existing session
   );
 }
 
@@ -186,7 +203,7 @@ export async function launchWorker(
   convoyId: string,
   convoyName: string,
   task: string,
-  checkpoint?: string
+  checkpoint?: string,
 ): Promise<boolean> {
   return await launchRole(sessionName, {
     role,
@@ -207,7 +224,7 @@ export async function respawnWorker(
   convoyId: string,
   convoyName: string,
   task: string,
-  checkpoint: string
+  checkpoint: string,
 ): Promise<boolean> {
   return await launchWorker(
     sessionName,
@@ -217,6 +234,6 @@ export async function respawnWorker(
     convoyId,
     convoyName,
     task,
-    checkpoint
+    checkpoint,
   );
 }
