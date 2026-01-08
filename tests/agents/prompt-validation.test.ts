@@ -89,6 +89,28 @@ const AGENT_VALIDATIONS: AgentValidation[] = [
     forbidden: [],
     requiredCommands: [],
   },
+  {
+    name: 'witness',
+    required: [
+      'bd show $GASTOWN_BD',
+      'bd comments add $GASTOWN_BD',
+      'bd agent state $GASTOWN_BD',
+      'REVIEW:',
+    ],
+    forbidden: [],
+    requiredCommands: [],
+  },
+  {
+    name: 'dog',
+    required: [
+      'bd show $GASTOWN_BD',
+      'bd comments add $GASTOWN_BD',
+      'bd agent state $GASTOWN_BD',
+      'TEST-RESULT:',
+    ],
+    forbidden: [],
+    requiredCommands: [],
+  },
 ];
 
 async function readAgentFile(name: string): Promise<string> {
