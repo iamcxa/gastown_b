@@ -77,7 +77,7 @@ Deno.test('Integration: Claude command generation', () => {
   const cmd = buildClaudeCommand({
     role: 'polecat',
     agentDir: '/project/.gastown/agents',
-    bdPath: '/project/convoy.bd',
+    convoyId: 'test-convoy-id',
     convoyName: 'test-convoy',
     prompt: 'Implement JWT service',
     workingDir: '/project',
@@ -85,7 +85,7 @@ Deno.test('Integration: Claude command generation', () => {
 
   // Should include all required parts
   assertEquals(cmd.includes('GASTOWN_ROLE=polecat'), true);
-  assertEquals(cmd.includes('GASTOWN_BD=/project/convoy.bd'), true);
+  assertEquals(cmd.includes('GASTOWN_BD=test-convoy-id'), true);
   assertEquals(cmd.includes('GASTOWN_CONVOY=test-convoy'), true);
   assertEquals(cmd.includes('--agent /project/.gastown/agents/polecat.md'), true);
   // Working directory is shell-escaped with single quotes
@@ -97,7 +97,7 @@ Deno.test('Integration: Claude command generation with resume', () => {
   const cmd = buildClaudeCommand({
     role: 'witness',
     agentDir: '/project/.gastown/agents',
-    bdPath: '/project/convoy.bd',
+    convoyId: 'review-convoy-id',
     convoyName: 'review-convoy',
     resume: true,
   });
