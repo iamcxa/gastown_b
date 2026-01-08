@@ -209,10 +209,51 @@ const MAYOR_SCENARIOS: MayorScenario[] = [
     task: 'Refactor the entire authentication module to use a cleaner architecture',
     mode: 'manual',
     expectedCommands: [
-      'gastown spawn',
+      '$GASTOWN_BIN spawn',
     ],
     expectedSpawns: ['planner'], // Refactoring needs design first
     forbiddenCommands: [],
+    forbiddenTools: ['Edit', 'Write'],
+  },
+
+  // -------------------------------------------------------------------------
+  // Scenario 11: Verification request - should spawn witness, NOT do it yourself
+  // -------------------------------------------------------------------------
+  {
+    name: 'verification-spawns-witness',
+    description: 'For verification requests, Mayor should spawn witness, NOT verify itself',
+    task: 'Verify the authentication implementation is correct',
+    mode: 'manual',
+    expectedCommands: [
+      '$GASTOWN_BIN spawn witness',
+    ],
+    expectedSpawns: ['witness'],
+    forbiddenCommands: [
+      'ls -la', // Should not explore files
+      'find ', // Should not search files
+      'pnpm install', // Should not run install
+      'npm test', // Should not run tests
+    ],
+    forbiddenTools: ['Edit', 'Write'],
+  },
+
+  // -------------------------------------------------------------------------
+  // Scenario 12: Build/test verification - should spawn dog
+  // -------------------------------------------------------------------------
+  {
+    name: 'build-test-spawns-dog',
+    description: 'For build/test verification, Mayor should spawn dog',
+    task: 'Make sure the project builds and all tests pass',
+    mode: 'manual',
+    expectedCommands: [
+      '$GASTOWN_BIN spawn dog',
+    ],
+    expectedSpawns: ['dog'],
+    forbiddenCommands: [
+      'pnpm test', // Should not run tests itself
+      'npm run build', // Should not run build itself
+      'deno test', // Should not run tests itself
+    ],
     forbiddenTools: ['Edit', 'Write'],
   },
 ];
@@ -298,7 +339,7 @@ Deno.test('Mayor scenarios: all scenarios are valid', () => {
   for (const scenario of MAYOR_SCENARIOS) {
     validateScenario(scenario);
   }
-  assertEquals(MAYOR_SCENARIOS.length >= 10, true, 'Should have at least 10 scenarios');
+  assertEquals(MAYOR_SCENARIOS.length >= 12, true, 'Should have at least 12 scenarios');
 });
 
 // Test scenario coverage

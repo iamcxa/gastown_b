@@ -24,8 +24,12 @@ const AGENT_VALIDATIONS: AgentValidation[] = [
       'bd show $GASTOWN_BD',
       'bd comments',
       'NEVER do implementation work yourself',
+      'NEVER verify/validate code yourself', // Must delegate verification
+      'NEVER run tests', // Must delegate testing
       'spawn planner',
       'spawn foreman',
+      'spawn witness', // For code review/verification
+      'spawn dog', // For testing
       'NEVER', // Must have prohibition instructions
     ],
     forbidden: [
@@ -38,6 +42,8 @@ const AGENT_VALIDATIONS: AgentValidation[] = [
       '$GASTOWN_BIN spawn planner',
       '$GASTOWN_BIN spawn foreman',
       '$GASTOWN_BIN spawn polecat',
+      '$GASTOWN_BIN spawn witness',
+      '$GASTOWN_BIN spawn dog',
     ],
   },
   {
