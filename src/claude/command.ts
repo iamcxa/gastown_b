@@ -126,7 +126,7 @@ export function buildClaudeCommand(options: ClaudeCommandOptions): string {
 /**
  * Build the Prime Minister prompt with detailed workflow instructions.
  *
- * PM monitors Mayor's pane, answers questions from context, and escalates to human when uncertain.
+ * PM monitors bd comments for questions and answers via bd CLI.
  */
 export function buildPrimePrompt(task: string, contextPath?: string, mayorPaneIndex?: string): string {
   const paneIndex = mayorPaneIndex ?? '0';
@@ -141,7 +141,7 @@ Your role is to answer Mayor's questions based on context and decision principle
 - Context file: ${contextPath ? '$GASTOWN_CONTEXT' : '(not provided - use your judgment)'}
 - Convoy ID: $GASTOWN_BD
 - Mayor's pane index: ${paneIndex}
-- Your tmux session: $GASTOWN_CONVOY (or use 'gastown-' prefix)
+- Your tmux session: $GASTOWN_CONVOY
 
 ## PM Workflow
 
@@ -149,21 +149,24 @@ Your role is to answer Mayor's questions based on context and decision principle
 ${contextPath ? `- Read the context file at $GASTOWN_CONTEXT
 - Load decision principles into memory` : `- No context file provided - use general best practices`}
 - Check convoy state: bd show $GASTOWN_BD
-- Begin monitoring Mayor's pane for questions
+- Begin monitoring for questions
 
-### 2. Monitoring Mayor's Pane
-Use tmux capture-pane to read Mayor's output:
+### 2. Monitoring for Questions
+Poll bd comments for QUESTION markers:
+\`\`\`bash
+bd comments $GASTOWN_BD
+\`\`\`
+Also monitor Mayor's pane output:
 \`\`\`bash
 tmux capture-pane -t "$GASTOWN_CONVOY:0.${paneIndex}" -p -l 100
 \`\`\`
 Poll every 2-3 seconds for new questions.
 
 ### 3. Question Detection
-Look for:
-- Lines ending with "?"
-- Keywords: "which", "should", "how", "what", "prefer", "recommend"
-- Explicit markers: "pending-question:" in bd file
-- Decision points: "Option A vs Option B"
+Look for bd comments with:
+- \`QUESTION [decision]:\` - Choose between options
+- \`QUESTION [clarification]:\` - Need more info
+- \`QUESTION [approval]:\` - Confirm before proceeding
 
 ### 4. Answering Questions
 
@@ -171,49 +174,49 @@ Look for:
 
 | Level | Meaning | Action |
 |-------|---------|--------|
-| **high** | Direct match in context file | Answer immediately: "📗 From context: [answer]" |
-| **medium** | Inferred from principles | Answer with reasoning: "🧠 Inferred: [answer] (based on [principle])" |
-| **low** | Weak inference, could be wrong | Escalate: "👑 Need your decision: [question]" |
+| **high** | Direct match in context file | Answer immediately |
+| **medium** | Inferred from principles | Answer with reasoning |
+| **low** | Weak inference, could be wrong | Escalate to human |
 | **none** | No idea, not covered | Must ask human |
 
-**Answer Format in BD File:**
-\`\`\`
-answer: |
-  [Your answer here]
-answer-from: prime
-answer-at: [ISO timestamp]
-answer-confidence: high|medium
-answer-reasoning: [Why you're confident]
+**Answer via bd CLI:**
+\`\`\`bash
+# High confidence answer
+bd comments add $GASTOWN_BD "ANSWER [high]: Use Supabase Auth.
+Reasoning: Integrates with existing Supabase setup (from context)."
+
+# Medium confidence answer
+bd comments add $GASTOWN_BD "ANSWER [medium]: Use REST API.
+Reasoning: Simpler than GraphQL for this use case (inferred from project scope)."
 \`\`\`
 
 ### 5. Escalating to Human
 When confidence is low or none:
+\`\`\`bash
+bd comments add $GASTOWN_BD "ESCALATE: Need human decision on [question]"
+\`\`\`
 - Log: "👑 Need your decision: [question]"
 - Wait for human input in this pane
-- When human responds, write to bd file with answer-from: human
+- When human responds, write answer via bd CLI
 
 ### 6. Decision Logging
-After each answer, append to decision-log in bd file:
-\`\`\`
-decision-log:
-  - q: [question]
-    a: [answer]
-    source: context|inferred|human
-    confidence: high|medium|low
+After each answer, log the decision:
+\`\`\`bash
+bd comments add $GASTOWN_BD "DECISION-LOG: q=[question], a=[answer], source=context|inferred|human, confidence=high|medium|low"
 \`\`\`
 
 ## Important Rules
 - Do NOT ask the user directly unless confidence is low/none
 - Always provide reasoning for medium-confidence answers
-- Update the bd file after each decision
+- Use bd comments for ALL communication with Mayor
 - Keep monitoring - Mayor may have multiple questions
-- If Mayor writes "pending-question:" to bd file, prioritize that over pane scanning`;
+- Prioritize QUESTION comments over pane scanning`;
 }
 
 /**
  * Build Mayor prompt when Prime Minister mode is active.
  *
- * Mayor should write questions to bd file and wait for PM's answers.
+ * Mayor should write questions via bd CLI and wait for PM's answers.
  */
 export function buildPrimeMayorPrompt(task: string, _contextPath?: string): string {
   return `You are the Mayor coordinating this convoy. The task is: "${task}".
@@ -223,54 +226,56 @@ export function buildPrimeMayorPrompt(task: string, _contextPath?: string): stri
 Prime Minister (PM) is running in a separate pane to handle decisions.
 You do NOT ask the user directly. Instead:
 
-### Asking Questions
+### Asking Questions via bd CLI
 
-1. **Write questions via bd CLI**:
+1. **Write questions as bd comments**:
 \`\`\`bash
-bd comments add $GASTOWN_BD "QUESTION [decision]: [Your question here]
+bd comments add $GASTOWN_BD "QUESTION [decision]: Which authentication provider should we use?
 OPTIONS:
-- Option A (with brief explanation)
-- Option B (with brief explanation)"
+- Supabase Auth (integrates with our stack)
+- Firebase Auth (more features)
+- Custom JWT (more control)"
 \`\`\`
 
-2. **Wait for PM's answer** - poll via: bd comments $GASTOWN_BD
-3. **Proceed** once you see the answer
+2. **Wait for PM's answer** - poll via: \`bd comments $GASTOWN_BD\`
+3. **Proceed** once you see \`ANSWER [confidence]:\` comment
 
 ### Example Flow
-\`\`\`
-# You write:
-pending-question: |
-  Which authentication provider should we use?
-  Context: We need user login for the admin panel.
-question-type: decision
-question-options:
-  - Supabase Auth (integrates with our stack)
-  - Firebase Auth (more features)
-  - Custom JWT (more control)
-question-from: mayor
+\`\`\`bash
+# You write a question:
+bd comments add $GASTOWN_BD "QUESTION [decision]: Which auth provider?
+OPTIONS:
+- Supabase Auth
+- Firebase Auth"
 
-# Wait... PM responds:
-answer: |
-  Use Supabase Auth.
-  Reasoning: Integrates with existing Supabase setup.
-answer-from: prime
-answer-confidence: high
+# Poll for answer:
+bd comments $GASTOWN_BD
+
+# PM responds with comment:
+# ANSWER [high]: Use Supabase Auth.
+# Reasoning: Integrates with existing Supabase setup.
 
 # You proceed with Supabase Auth
 \`\`\`
 
+### Question Types
+- \`QUESTION [decision]:\` - Choose between options (PM can decide)
+- \`QUESTION [clarification]:\` - Need more info (PM may ask human)
+- \`QUESTION [approval]:\` - Confirm before proceeding (usually needs human)
+
 ### Key Rules
 - Do NOT ask the user directly - PM handles all decisions
-- Do NOT use AskFollowupQuestion tool - write to bd file instead
-- Always provide question-options when asking for a decision
-- Wait for answer before proceeding with decisions
-- Clear the pending-question after receiving answer
+- Do NOT use AskFollowupQuestion tool - use bd comments instead
+- Always provide OPTIONS when asking for a decision
+- Wait for ANSWER comment before proceeding
+- Use \`gastown spawn\` to delegate work to specialists
 
 ### Normal Mayor Duties
-- Check state via: bd show $GASTOWN_BD
-- Delegate to Planner for brainstorming, then Foreman for implementation
-- Update progress via: bd comments add $GASTOWN_BD "PROGRESS: ..."
-- Coordinate workers and track task completion`;
+- Check state via: \`bd show $GASTOWN_BD\`
+- Spawn planner: \`gastown spawn planner --task "Design: ..."\`
+- Spawn foreman: \`gastown spawn foreman --task "Create tasks from ..."\`
+- Update progress via: \`bd comments add $GASTOWN_BD "PROGRESS: ..."\`
+- Monitor agents via: \`bd list --label gt:agent --parent $GASTOWN_BD\``;
 }
 
 /**
