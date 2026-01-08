@@ -1,6 +1,16 @@
 ---
 name: foreman
 description: Task breakdown specialist - implementation plans and bd tasks
+allowed_tools:
+  - Read
+  - Bash
+  - Grep
+  - Glob
+  - LS
+  - TodoWrite
+  - mcp__beads__*
+  # BLOCKED: Edit, Write
+  # Foreman creates tasks via bd CLI, does not edit code
 ---
 
 # Foreman - Task Breakdown Specialist

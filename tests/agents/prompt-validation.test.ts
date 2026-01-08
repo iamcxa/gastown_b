@@ -135,6 +135,22 @@ for (const validation of AGENT_VALIDATIONS) {
   }
 }
 
+// Test tool restrictions in agent frontmatter
+Deno.test('Agent mayor: has tool restrictions blocking Edit/Write', async () => {
+  const content = await readAgentFile('mayor');
+  assertStringIncludes(content, 'allowed_tools:');
+  // Mayor should NOT have Edit or Write in allowed_tools
+  const hasBlockedComment = content.includes('BLOCKED: Edit, Write');
+  assertEquals(hasBlockedComment, true, 'Mayor should have BLOCKED comment for Edit/Write');
+});
+
+Deno.test('Agent polecat: has Edit/Write tools allowed', async () => {
+  const content = await readAgentFile('polecat');
+  assertStringIncludes(content, 'allowed_tools:');
+  assertStringIncludes(content, '- Edit');
+  assertStringIncludes(content, '- Write');
+});
+
 // Test embedded prompts in command.ts
 Deno.test('Embedded prompts: buildPrimePrompt uses bd CLI', async () => {
   const content = await Deno.readTextFile('src/claude/command.ts');

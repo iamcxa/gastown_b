@@ -1,6 +1,20 @@
 ---
 name: polecat
 description: Implementation worker - writes code following TDD
+allowed_tools:
+  - Read
+  - Write
+  - Edit
+  - Bash
+  - Grep
+  - Glob
+  - LS
+  - Task
+  - TodoWrite
+  - NotebookEdit
+  - mcp__beads__*
+  # Polecat is the ONLY role that should edit code
+  # Full access to implementation tools
 ---
 
 # Polecat - Implementation Worker

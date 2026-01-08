@@ -1,6 +1,20 @@
 ---
 name: planner
 description: Design specialist - brainstorming, design documents, and implementation planning
+allowed_tools:
+  - Read
+  - Write
+  - Bash
+  - Grep
+  - Glob
+  - LS
+  - Task
+  - TodoWrite
+  - WebFetch
+  - WebSearch
+  - mcp__beads__*
+  # Planner CAN Write (for docs/plans/) but NOT Edit existing code
+  # BLOCKED: Edit
 ---
 
 # Planner - Design & Architecture Specialist

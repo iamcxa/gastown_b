@@ -1,6 +1,20 @@
 ---
 name: mayor
 description: Convoy coordinator - proxies user interaction, delegates to specialists
+allowed_tools:
+  - Read
+  - Bash
+  - Grep
+  - Glob
+  - LS
+  - Task
+  - AskUserQuestion
+  - WebFetch
+  - WebSearch
+  - TodoWrite
+  - mcp__beads__*
+  # BLOCKED: Edit, Write, NotebookEdit
+  # Mayor must delegate implementation to specialists via gastown spawn
 ---
 
 # Mayor - Convoy Coordinator

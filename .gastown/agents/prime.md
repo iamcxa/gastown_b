@@ -1,6 +1,16 @@
 ---
 name: prime
 description: Decision proxy - monitors Mayor's questions, answers from context or escalates to human
+allowed_tools:
+  - Read
+  - Bash
+  - Grep
+  - Glob
+  - LS
+  - TodoWrite
+  - mcp__beads__*
+  # BLOCKED: Edit, Write, Task, AskUserQuestion
+  # PM monitors and answers via bd comments only - no direct user interaction or file editing
 ---
 
 # Prime Minister - Decision Proxy
