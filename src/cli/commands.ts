@@ -13,6 +13,11 @@ import {
   createConvoy,
   createAgentBead,
   setAgentState,
+  getConvoy,
+  listAgentBeads,
+  listConvoys,
+  getReadyTasks,
+  closeConvoy,
   type ConvoyInfo,
 } from '../bd-cli/mod.ts';
 
@@ -29,6 +34,7 @@ export interface ConvoyState {
   mayorId: string;
   plannerId?: string;
   foremanId?: string;
+  primeId?: string;
   mode: 'mayor' | 'prime';
   tmuxSession: string;
 }
@@ -126,6 +132,11 @@ export async function startConvoyWithBd(
   task: string,
   options: StartOptionsV2 = {}
 ): Promise<ConvoyState> {
+  // Input validation
+  if (!task || task.trim() === '') {
+    throw new Error('Task description is required');
+  }
+
   const projectDir = options.projectDir || Deno.cwd();
   const config = await loadConfig(projectDir);
   const maxWorkers = options.maxWorkers || config.maxWorkers;
@@ -135,12 +146,21 @@ export async function startConvoyWithBd(
   console.log(`Starting convoy for: "${task}"`);
   console.log(`Max workers: ${maxWorkers}`);
 
+  // Build labels including contextPath for resume support
+  const labels: string[] = [];
+  if (primeMode) {
+    labels.push('mode:prime');
+  }
+  if (options.contextPath) {
+    labels.push(`context:${options.contextPath}`);
+  }
+
   // 1. Create convoy epic via bd CLI
   const convoy = await createConvoy({
     title: task,
     description: `Convoy: ${task}`,
     maxWorkers,
-    labels: primeMode ? ['mode:prime'] : [],
+    labels,
   });
 
   console.log(`Created convoy: ${convoy.id}`);
@@ -198,6 +218,7 @@ export async function startConvoyWithBd(
 
   if (!success) {
     console.error('Failed to start convoy');
+    // Note: Orphaned beads remain in bd - acceptable for debugging/resume purposes
     throw new Error('Failed to launch Mayor');
   }
 
@@ -210,6 +231,7 @@ export async function startConvoyWithBd(
       role: 'prime',
       convoyId: convoy.id,
     });
+    state.primeId = prime.id;
 
     const primeSuccess = await launchPrime(
       sessionName,
@@ -231,6 +253,250 @@ export async function startConvoyWithBd(
   await attachSession(sessionName);
 
   return state;
+}
+
+// Constants for convoy labels
+const MODE_PRIME_LABEL = 'mode:prime';
+const CONTEXT_PREFIX = 'context:';
+
+export async function resumeConvoyWithBd(
+  convoyId: string,
+  options: StartOptionsV2 = {}
+): Promise<ConvoyState> {
+  // Input validation
+  if (!convoyId || convoyId.trim() === '') {
+    throw new Error('Convoy ID is required');
+  }
+
+  console.log(`Resuming convoy: ${convoyId}`);
+
+  // 1. Get convoy info from bd
+  const convoy = await getConvoy(convoyId);
+  const sessionName = `gastown-${convoyId}`;
+
+  // 2. Get agent beads
+  const agents = await listAgentBeads(convoyId);
+  const mayor = agents.find((a) => a.role === 'mayor');
+  const planner = agents.find((a) => a.role === 'planner');
+  const foreman = agents.find((a) => a.role === 'foreman');
+  const prime = agents.find((a) => a.role === 'prime');
+
+  if (!mayor) {
+    throw new Error('Mayor agent not found in convoy');
+  }
+
+  // 3. Determine mode from labels
+  const isPrimeMode = convoy.labels.includes(MODE_PRIME_LABEL);
+  const mode = isPrimeMode ? 'prime' : 'mayor';
+
+  const state: ConvoyState = {
+    convoyId: convoy.id,
+    convoyInfo: convoy,
+    mayorId: mayor.id,
+    plannerId: planner?.id,
+    foremanId: foreman?.id,
+    primeId: prime?.id,
+    mode,
+    tmuxSession: sessionName,
+  };
+
+  // 4. Check if already running - return early if so
+  if (await sessionExists(sessionName)) {
+    console.log('Session already running. Attaching...');
+    if (!options.dryRun) {
+      await attachSession(sessionName);
+    }
+    return state;
+  }
+
+  if (options.dryRun) {
+    return state;
+  }
+
+  // 5. Rebuild tmux session
+  console.log('Rebuilding session...');
+  const projectDir = options.projectDir || Deno.cwd();
+  await loadConfig(projectDir);
+
+  // Extract contextPath from convoy labels
+  const contextLabel = convoy.labels.find((l) => l.startsWith(CONTEXT_PREFIX));
+  const contextPath = contextLabel?.replace(CONTEXT_PREFIX, '') ?? options.contextPath;
+
+  const success = await launchMayor(
+    sessionName,
+    projectDir,
+    convoyId,
+    convoyId,
+    convoy.title,
+    contextPath,
+    isPrimeMode
+  );
+
+  if (!success) {
+    throw new Error('Failed to resume convoy');
+  }
+
+  await setAgentState(mayor.id, 'working');
+
+  // 6. Launch Prime if needed
+  if (isPrimeMode && prime) {
+    const primeSuccess = await launchPrime(
+      sessionName,
+      projectDir,
+      convoyId,
+      convoyId,
+      convoy.title,
+      contextPath ?? '',
+      '0'
+    );
+    if (primeSuccess) {
+      await setAgentState(prime.id, 'working');
+    } else {
+      console.warn('Warning: Failed to launch Prime Minister');
+    }
+  }
+
+  console.log('Convoy resumed. Attaching...');
+  await attachSession(sessionName);
+
+  return state;
+}
+
+// Constants for showStatusWithBd
+const STATUS_OPEN = 'open';
+const MAX_DISPLAYED_TASKS = 5;
+const GASTOWN_SESSION_PREFIX = 'gastown-';
+
+export async function showStatusWithBd(convoyId?: string): Promise<void> {
+  if (convoyId) {
+    try {
+      const convoy = await getConvoy(convoyId);
+      const agents = await listAgentBeads(convoyId);
+      const tasks = await getReadyTasks(convoyId);
+
+      console.log(`\nConvoy: ${convoy.id}`);
+      console.log(`Title: ${convoy.title}`);
+      console.log(`Status: ${convoy.status}`);
+      console.log('');
+
+      console.log('Agents:');
+      if (agents.length === 0) {
+        console.log('  (none)');
+      } else {
+        for (const agent of agents) {
+          console.log(`  ${agent.role}: ${agent.state}`);
+        }
+      }
+      console.log('');
+
+      const displayedTasks = tasks.slice(0, MAX_DISPLAYED_TASKS);
+      const remainingCount = tasks.length - displayedTasks.length;
+      console.log(`Ready tasks: ${tasks.length}`);
+      for (const task of displayedTasks) {
+        console.log(`  - ${task.title}`);
+      }
+      if (remainingCount > 0) {
+        console.log(`  ... and ${remainingCount} more`);
+      }
+    } catch (error) {
+      const message = error instanceof Error ? error.message : String(error);
+      console.error(`Failed to get convoy status: ${message}`);
+    }
+  } else {
+    // List all convoys
+    try {
+      const convoys = await listConvoys(STATUS_OPEN);
+      const sessions = await listSessions();
+
+      if (convoys.length === 0) {
+        console.log('No active convoys.');
+        return;
+      }
+
+      console.log('Active convoys:');
+      for (const convoy of convoys) {
+        // Match gastown session naming convention: gastown-{convoyId}
+        const expectedSessionName = `${GASTOWN_SESSION_PREFIX}${convoy.id}`;
+        const hasSession = sessions.includes(expectedSessionName);
+        const status = hasSession ? '(running)' : '(stopped)';
+        console.log(`  - ${convoy.id}: ${convoy.title} ${status}`);
+      }
+    } catch (error) {
+      const message = error instanceof Error ? error.message : String(error);
+      console.error(`Failed to list convoys: ${message}`);
+    }
+  }
+}
+
+export interface StopOptions {
+  dryRun?: boolean;
+}
+
+// Constants for stop messages
+const STOP_REASON = 'Stopped by user';
+
+export async function stopConvoyWithBd(
+  convoyId?: string,
+  options: StopOptions = {}
+): Promise<void> {
+  if (convoyId) {
+    // Stop specific convoy
+    const sessionName = `${GASTOWN_SESSION_PREFIX}${convoyId}`;
+
+    try {
+      // 1. Update agent states (only when not dry run)
+      if (!options.dryRun) {
+        const agents = await listAgentBeads(convoyId);
+        for (const agent of agents) {
+          await setAgentState(agent.id, 'stopped');
+        }
+      }
+
+      // 2. Kill tmux session
+      if (!options.dryRun && await sessionExists(sessionName)) {
+        console.log(`Stopping ${sessionName}...`);
+        await killSession(sessionName);
+      }
+
+      // 3. Close convoy (only when not dry run)
+      if (!options.dryRun) {
+        await closeConvoy(convoyId, STOP_REASON);
+      }
+      console.log(`Convoy ${convoyId} stopped.`);
+    } catch (error) {
+      const message = error instanceof Error ? error.message : String(error);
+      console.error(`Failed to stop convoy ${convoyId}: ${message}`);
+      throw error; // Re-throw for programmatic callers
+    }
+  } else {
+    // Stop all convoys
+    try {
+      const convoys = await listConvoys(STATUS_OPEN);
+      const sessions = await listSessions();
+
+      if (convoys.length === 0 && sessions.length === 0) {
+        console.log('No active convoys.');
+        return;
+      }
+
+      for (const convoy of convoys) {
+        await stopConvoyWithBd(convoy.id, options);
+      }
+
+      // Kill any orphaned gastown sessions
+      for (const session of sessions) {
+        if (session.startsWith(GASTOWN_SESSION_PREFIX) && !options.dryRun) {
+          await killSession(session);
+        }
+      }
+
+      console.log('All convoys stopped.');
+    } catch (error) {
+      const message = error instanceof Error ? error.message : String(error);
+      console.error(`Failed to stop convoys: ${message}`);
+      throw error; // Re-throw for programmatic callers
+    }
+  }
 }
 
 export async function resumeConvoy(bdPath: string): Promise<void> {

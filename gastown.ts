@@ -16,11 +16,11 @@
 
 import { parseArgs } from 'https://deno.land/std@0.224.0/cli/parse_args.ts';
 import {
-  startConvoy,
-  resumeConvoy,
-  showStatus,
+  startConvoyWithBd,
+  resumeConvoyWithBd,
+  showStatusWithBd,
   attachToConvoy,
-  stopConvoy,
+  stopConvoyWithBd,
   initConfig,
 } from './src/cli/commands.ts';
 
@@ -108,7 +108,7 @@ async function main(): Promise<void> {
   }
 
   if (command === 'stop') {
-    await stopConvoy(args.archive);
+    await stopConvoyWithBd();
     return;
   }
 
@@ -118,18 +118,18 @@ async function main(): Promise<void> {
   }
 
   if (args.resume) {
-    await resumeConvoy(args.resume);
+    await resumeConvoyWithBd(args.resume);
     return;
   }
 
   if (args.status !== undefined) {
-    await showStatus(args.status || undefined);
+    await showStatusWithBd(args.status || undefined);
     return;
   }
 
   if (command) {
     const task = [command, ...rest].join(' ');
-    await startConvoy(task, {
+    await startConvoyWithBd(task, {
       maxWorkers: args['max-workers'] ? parseInt(args['max-workers']) : undefined,
       contextPath: args.context,
       primeMode: args.prime,
