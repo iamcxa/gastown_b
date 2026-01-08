@@ -29,65 +29,6 @@ export interface DecisionLogEntry {
   confidence: string;
 }
 
-/**
- * @deprecated Use bd CLI for task status management instead.
- * This type will be removed in v0.2.0.
- */
-export type TaskStatus = '🔵' | '🟡' | '✅' | '⚠️';
-
-/**
- * @deprecated Use bd CLI for task management instead.
- * See src/bd-cli/task.ts for the new TaskInfo type.
- * This type will be removed in v0.2.0.
- */
-export interface BdTask {
-  id: string;
-  role: RoleName;
-  roleInstance?: number;
-  description: string;
-  status: TaskStatus;
-  notes: BdNote[];
-}
-
-/**
- * @deprecated Use bd CLI comments instead.
- * This type will be removed in v0.2.0.
- */
-export interface BdNote {
-  key: string;
-  value: string;
-}
-
-/**
- * @deprecated Use bd CLI for convoy management instead.
- * See src/bd-cli/convoy.ts for the new ConvoyInfo type.
- * This type will be removed in v0.2.0.
- */
-export interface BdFile {
-  path: string;
-  convoyName: string;
-  convoyDescription: string;
-  contextPath?: string; // Path to convoy-context.md for autopilot guidance
-  meta: Record<string, string>;
-  sections: BdSection[];
-
-  // Prime Minister mode fields
-  mode?: ConvoyMode;
-  primeEnabled?: boolean;
-  pendingQuestion?: PendingQuestion;
-  answer?: Answer;
-  decisionLog?: DecisionLogEntry[];
-}
-
-/**
- * @deprecated Use bd CLI for task organization instead.
- * This type will be removed in v0.2.0.
- */
-export interface BdSection {
-  name: string;
-  tasks: BdTask[];
-}
-
 export interface Convoy {
   id: string;
   name: string;

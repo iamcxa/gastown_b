@@ -1,7 +1,6 @@
 import { loadConfig, saveConfig, generateDefaultConfig } from './config.ts';
 import { extractIssueIds, findDuplicateConvoys } from './duplicate-check.ts';
 import { promptConvoySelection } from './prompt.ts';
-import { createNewBd, writeBdFile, parseBdFile } from '../bd/mod.ts';
 import { launchMayor, launchPrime } from '../claude/launcher.ts';
 import {
   attachSession,
@@ -9,8 +8,6 @@ import {
   listSessions,
   sessionExists,
 } from '../tmux/operations.ts';
-import { getConvoyProgress } from '../scheduler/scheduler.ts';
-import type { BdFile } from '../types.ts';
 import {
   createConvoy,
   createAgentBead,
@@ -435,115 +432,6 @@ export async function stopConvoyWithBd(
   }
 }
 
-export async function resumeConvoy(bdPath: string): Promise<void> {
-  console.log(`Resuming convoy from: ${bdPath}`);
-
-  const bd = await parseBdFile(bdPath);
-  const sessionName = `gastown-${bd.convoyName}`;
-
-  if (await sessionExists(sessionName)) {
-    console.log('Session already running. Attaching...');
-    await attachSession(sessionName);
-    return;
-  }
-
-  console.log('Rebuilding session from bd state...');
-
-  const projectDir = Deno.cwd();
-  await loadConfig(projectDir);
-
-  // Get context path from bd meta (for autopilot mode)
-  const contextPath = bd.contextPath || bd.meta['context-path'];
-  if (contextPath) {
-    console.log(`Resuming in autopilot mode: ${contextPath}`);
-  }
-
-  // Check if prime mode was enabled
-  const isPrimeMode = bd.mode === 'prime' || bd.meta['mode'] === 'prime' || bd.primeEnabled;
-  if (isPrimeMode) {
-    console.log('Prime Minister mode enabled');
-  }
-
-  const success = await launchMayor(
-    sessionName,
-    projectDir,
-    bdPath,
-    bd.convoyName,
-    bd.convoyDescription,
-    contextPath,
-    isPrimeMode
-  );
-
-  if (!success) {
-    console.error('Failed to resume convoy');
-    return;
-  }
-
-  // Launch Prime Minister if prime mode was enabled
-  if (isPrimeMode) {
-    console.log('Launching Prime Minister in split pane...');
-    const primeContextPath = contextPath || '';
-    const primeSuccess = await launchPrime(
-      sessionName,
-      projectDir,
-      bdPath,
-      bd.convoyName,
-      bd.convoyDescription,
-      primeContextPath,
-      '0' // Mayor is in pane 0
-    );
-
-    if (!primeSuccess) {
-      console.error('Failed to launch Prime Minister');
-      // Continue anyway - Mayor is running
-    } else {
-      console.log('Prime Minister launched');
-    }
-  }
-
-  console.log('Convoy resumed. Attaching...');
-  await attachSession(sessionName);
-}
-
-export async function showStatus(bdPath?: string): Promise<void> {
-  if (bdPath) {
-    const bd = await parseBdFile(bdPath);
-    displayBdStatus(bd);
-  } else {
-    const sessions = await listSessions();
-
-    if (sessions.length === 0) {
-      console.log('No active convoys.');
-      return;
-    }
-
-    console.log('Active convoys:');
-    for (const session of sessions) {
-      console.log(`  - ${session}`);
-    }
-  }
-}
-
-function displayBdStatus(bd: BdFile): void {
-  console.log(`\nConvoy: ${bd.convoyName}`);
-  console.log(`Description: ${bd.convoyDescription}`);
-  console.log(`Phase: ${bd.meta['phase'] || 'unknown'}`);
-  console.log('');
-
-  const progress = getConvoyProgress(bd);
-  console.log(`Progress: ${progress.completed}/${progress.total} (${progress.percent}%)`);
-  console.log('');
-
-  for (const section of bd.sections) {
-    console.log(`### ${section.name}`);
-    for (const task of section.tasks) {
-      const roleStr = task.roleInstance ? `${task.role}-${task.roleInstance}` : task.role;
-      console.log(`  ${task.status} [${roleStr}] ${task.description}`);
-    }
-    console.log('');
-  }
-}
-
 export async function attachToConvoy(sessionName?: string): Promise<void> {
   if (sessionName) {
     const fullName = sessionName.startsWith('gastown-') ? sessionName : `gastown-${sessionName}`;
@@ -556,27 +444,6 @@ export async function attachToConvoy(sessionName?: string): Promise<void> {
     }
     await attachSession(sessions[0]);
   }
-}
-
-export async function stopConvoy(archive: boolean = false): Promise<void> {
-  const sessions = await listSessions();
-
-  if (sessions.length === 0) {
-    console.log('No active convoys.');
-    return;
-  }
-
-  for (const session of sessions) {
-    console.log(`Stopping ${session}...`);
-    await killSession(session);
-  }
-
-  if (archive) {
-    console.log('Archiving bd files...');
-    // TODO: Move bd files to archive directory
-  }
-
-  console.log('All convoys stopped.');
 }
 
 export async function initConfig(): Promise<void> {
