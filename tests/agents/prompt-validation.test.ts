@@ -1,0 +1,156 @@
+/**
+ * Agent Prompt Validation Tests
+ *
+ * These tests validate that agent prompts contain required patterns
+ * and don't contain forbidden patterns that could lead to incorrect behavior.
+ */
+
+import { assertEquals, assertStringIncludes } from 'https://deno.land/std@0.224.0/assert/mod.ts';
+
+const AGENTS_DIR = '.gastown/agents';
+
+interface AgentValidation {
+  name: string;
+  required: string[];
+  forbidden: string[];
+  requiredCommands: string[];
+}
+
+const AGENT_VALIDATIONS: AgentValidation[] = [
+  {
+    name: 'mayor',
+    required: [
+      'gastown spawn',
+      'bd show $GASTOWN_BD',
+      'bd comments',
+      'NEVER do implementation work yourself',
+      'spawn planner',
+      'spawn foreman',
+      'NEVER', // Must have prohibition instructions
+    ],
+    forbidden: [
+      // Note: "superpowers:brainstorming" is OK if in "NEVER use" context
+      // These patterns indicate Mayor doing work directly (not delegating)
+      'Use superpowers:brainstorming to design', // Direct usage instruction
+      'implement the following', // Direct implementation instruction
+    ],
+    requiredCommands: [
+      'gastown spawn planner',
+      'gastown spawn foreman',
+      'gastown spawn polecat',
+    ],
+  },
+  {
+    name: 'prime',
+    required: [
+      'bd comments',
+      'ANSWER',
+      'QUESTION',
+      '$GASTOWN_BD',
+    ],
+    forbidden: [
+      'write to bd file', // Old pattern - should use bd CLI
+      'pending-question:', // Old YAML format
+    ],
+    requiredCommands: [
+      'bd comments add $GASTOWN_BD',
+      'bd comments $GASTOWN_BD',
+    ],
+  },
+  {
+    name: 'planner',
+    required: [
+      'bd comments add $GASTOWN_BD',
+      'docs/plans/',
+    ],
+    forbidden: [],
+    requiredCommands: [],
+  },
+  {
+    name: 'foreman',
+    required: [
+      'bd comments add $GASTOWN_BD',
+    ],
+    forbidden: [],
+    requiredCommands: [],
+  },
+  {
+    name: 'polecat',
+    required: [
+      'bd comments add $GASTOWN_BD',
+      'TDD',
+    ],
+    forbidden: [],
+    requiredCommands: [],
+  },
+];
+
+async function readAgentFile(name: string): Promise<string> {
+  const path = `${AGENTS_DIR}/${name}.md`;
+  return await Deno.readTextFile(path);
+}
+
+for (const validation of AGENT_VALIDATIONS) {
+  Deno.test(`Agent ${validation.name}: contains required patterns`, async () => {
+    const content = await readAgentFile(validation.name);
+
+    for (const pattern of validation.required) {
+      const found = content.includes(pattern);
+      assertEquals(
+        found,
+        true,
+        `Agent ${validation.name} missing required pattern: "${pattern}"`
+      );
+    }
+  });
+
+  if (validation.forbidden.length > 0) {
+    Deno.test(`Agent ${validation.name}: does not contain forbidden patterns`, async () => {
+      const content = await readAgentFile(validation.name);
+
+      for (const pattern of validation.forbidden) {
+        const found = content.includes(pattern);
+        assertEquals(
+          found,
+          false,
+          `Agent ${validation.name} contains forbidden pattern: "${pattern}"`
+        );
+      }
+    });
+  }
+
+  if (validation.requiredCommands.length > 0) {
+    Deno.test(`Agent ${validation.name}: contains required commands`, async () => {
+      const content = await readAgentFile(validation.name);
+
+      for (const command of validation.requiredCommands) {
+        const found = content.includes(command);
+        assertEquals(
+          found,
+          true,
+          `Agent ${validation.name} missing required command: "${command}"`
+        );
+      }
+    });
+  }
+}
+
+// Test embedded prompts in command.ts
+Deno.test('Embedded prompts: buildPrimePrompt uses bd CLI', async () => {
+  const content = await Deno.readTextFile('src/claude/command.ts');
+
+  // Should have bd comments commands
+  assertStringIncludes(content, 'bd comments add $GASTOWN_BD');
+  assertStringIncludes(content, 'bd comments $GASTOWN_BD');
+
+  // Should NOT have old file-based patterns
+  const hasBdFile = content.includes('write to bd file');
+  assertEquals(hasBdFile, false, 'buildPrimePrompt still references "write to bd file"');
+});
+
+Deno.test('Embedded prompts: buildPrimeMayorPrompt uses gastown spawn', async () => {
+  const content = await Deno.readTextFile('src/claude/command.ts');
+
+  // Should reference gastown spawn
+  assertStringIncludes(content, 'gastown spawn');
+});
