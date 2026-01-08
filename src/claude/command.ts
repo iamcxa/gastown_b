@@ -133,7 +133,7 @@ Your role is to answer Mayor's questions based on context and decision principle
 
 ## Environment
 - Context file: ${contextPath ? '$GASTOWN_CONTEXT' : '(not provided - use your judgment)'}
-- BD file: $GASTOWN_BD
+- Convoy ID: $GASTOWN_BD
 - Mayor's pane index: ${paneIndex}
 - Your tmux session: $GASTOWN_CONVOY (or use 'gastown-' prefix)
 
@@ -142,7 +142,7 @@ Your role is to answer Mayor's questions based on context and decision principle
 ### 1. On Start
 ${contextPath ? `- Read the context file at $GASTOWN_CONTEXT
 - Load decision principles into memory` : `- No context file provided - use general best practices`}
-- Read the bd file at $GASTOWN_BD for current state
+- Check convoy state: bd show $GASTOWN_BD
 - Begin monitoring Mayor's pane for questions
 
 ### 2. Monitoring Mayor's Pane
@@ -219,19 +219,15 @@ You do NOT ask the user directly. Instead:
 
 ### Asking Questions
 
-1. **Write questions to the bd file** at $GASTOWN_BD:
-\`\`\`
-pending-question: |
-  [Your question here - be specific and provide context]
-question-type: decision|clarification|approval
-question-options:
-  - Option A (with brief explanation)
-  - Option B (with brief explanation)
-question-from: mayor
-question-at: [ISO timestamp]
+1. **Write questions via bd CLI**:
+\`\`\`bash
+bd comments add $GASTOWN_BD "QUESTION [decision]: [Your question here]
+OPTIONS:
+- Option A (with brief explanation)
+- Option B (with brief explanation)"
 \`\`\`
 
-2. **Wait for PM's answer** - poll the bd file for "answer:" field
+2. **Wait for PM's answer** - poll via: bd comments $GASTOWN_BD
 3. **Proceed** once you see the answer
 
 ### Example Flow
@@ -265,9 +261,9 @@ answer-confidence: high
 - Clear the pending-question after receiving answer
 
 ### Normal Mayor Duties
-- Read the bd file at $GASTOWN_BD to understand current state
+- Check state via: bd show $GASTOWN_BD
 - Delegate to Planner for brainstorming, then Foreman for implementation
-- Update the bd file with convoy progress
+- Update progress via: bd comments add $GASTOWN_BD "PROGRESS: ..."
 - Coordinate workers and track task completion`;
 }
 
@@ -302,40 +298,40 @@ export function buildRolePrompt(
       contextPath
         ? `You are the Mayor coordinating this convoy in AUTOPILOT MODE. The task is: "${task}". ` +
           `Read the context file at $GASTOWN_CONTEXT for pre-defined answers and decision principles. ` +
-          `Read the bd file at $GASTOWN_BD for current state. Proceed without asking user unless blocked.`
+          `Check state via: bd show $GASTOWN_BD. Proceed without asking user unless blocked.`
         : `You are the Mayor coordinating this convoy. The task is: "${task}". ` +
-          `Read the bd file at $GASTOWN_BD to understand current state. ` +
+          `Check state via: bd show $GASTOWN_BD. ` +
           `Delegate to Planner for brainstorming, then Foreman for implementation planning.`,
 
     planner: (task) =>
       `You are the Planner. Use superpowers:brainstorming to design: "${task}". ` +
-      `Update the bd file with your progress. Output design doc to docs/plans/.`,
+      `Update progress via: bd comments add $GASTOWN_BD "...". Output design doc to docs/plans/.`,
 
     foreman: (_task, checkpoint) =>
       checkpoint
         ? `You are the Foreman. Continue from checkpoint: "${checkpoint}". ` +
-          `Read the design doc and create implementation tasks in the bd file.`
+          `Read the design doc and create implementation tasks via bd CLI.`
         : `You are the Foreman. Read the design doc and use superpowers:writing-plans ` +
-          `to create detailed implementation tasks. Update the bd file with tasks.`,
+          `to create detailed implementation tasks. Update via: bd comments add $GASTOWN_BD "..."`,
 
     polecat: (task, checkpoint) =>
       checkpoint
         ? `You are Polecat (implementation). Continue from: "${checkpoint}". ` +
-          `Update bd file with progress after each step.`
+          `Update progress via: bd comments add $GASTOWN_BD "..."`
         : `You are Polecat (implementation). Your task: "${task}". ` +
-          `Follow TDD. Update bd file with progress after each step.`,
+          `Follow TDD. Update progress via: bd comments add $GASTOWN_BD "..."`,
 
     witness: (task) =>
       `You are Witness (code review). Review the implementation for: "${task}". ` +
-      `Check code quality, tests, and adherence to patterns. Update bd file with findings.`,
+      `Check code quality, tests, and adherence to patterns. Log via: bd comments add $GASTOWN_BD "..."`,
 
     dog: (task) =>
       `You are Dog (testing). Run and verify tests for: "${task}". ` +
-      `Ensure all tests pass. Update bd file with test results.`,
+      `Ensure all tests pass. Log results via: bd comments add $GASTOWN_BD "..."`,
 
     refinery: (task) =>
       `You are Refinery (code quality). Audit and refactor: "${task}". ` +
-      `Look for improvements, security issues, and code smells. Update bd file.`,
+      `Look for improvements, security issues, and code smells. Log via: bd comments add $GASTOWN_BD "..."`,
 
     prime: (task, _checkpoint, contextPath) =>
       // This is a fallback - should use buildPrimePrompt() instead
