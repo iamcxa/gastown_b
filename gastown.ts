@@ -23,6 +23,8 @@ import {
   stopConvoyWithBd,
   initConfig,
 } from './src/cli/commands.ts';
+import { spawnAgent } from './src/spawn/mod.ts';
+import type { RoleName } from './src/types.ts';
 
 const VERSION = '0.1.0';
 
@@ -39,6 +41,7 @@ USAGE:
   gastown attach [session-name]     Attach to running convoy
   gastown stop [--archive]          Stop all convoys
   gastown init                      Initialize gastown in project
+  gastown spawn <role> --task "..."   Spawn agent in current convoy
 
 OPTIONS:
   --max-workers <n>    Maximum parallel workers (default: 3)
@@ -46,6 +49,19 @@ OPTIONS:
   --prime, -p          Enable Prime Minister mode (autonomous convoy)
   --help, -h           Show this help
   --version, -v        Show version
+
+SPAWN OPTIONS:
+  --task "<desc>"      Task description for the agent (required for spawn)
+  --convoy <id>        Override convoy ID (default: $GASTOWN_BD)
+  --convoy-name <n>    Override convoy name (default: $GASTOWN_CONVOY)
+
+SPAWN ROLES:
+  planner    Design and architecture
+  foreman    Task breakdown and planning
+  polecat    Implementation (TDD)
+  witness    Code review
+  dog        Testing
+  refinery   Code quality
 
 MODES:
   Mayor Mode (default):
@@ -80,13 +96,14 @@ EXAMPLES:
 
 async function main(): Promise<void> {
   const args = parseArgs(Deno.args, {
-    string: ['resume', 'status', 'max-workers', 'context'],
+    string: ['resume', 'status', 'max-workers', 'context', 'task', 'convoy', 'convoy-name'],
     boolean: ['help', 'version', 'archive', 'prime'],
     alias: {
       h: 'help',
       v: 'version',
       c: 'context',
       p: 'prime',
+      t: 'task',
     },
   });
 
@@ -114,6 +131,42 @@ async function main(): Promise<void> {
 
   if (command === 'init') {
     await initConfig();
+    return;
+  }
+
+  if (command === 'spawn') {
+    const role = rest[0]?.toString();
+    const validRoles = ['planner', 'foreman', 'polecat', 'witness', 'dog', 'refinery'];
+
+    if (!role || !validRoles.includes(role)) {
+      console.error(`Usage: gastown spawn <role> --task "<description>"`);
+      console.error(`Roles: ${validRoles.join(', ')}`);
+      Deno.exit(1);
+    }
+
+    if (!args.task) {
+      console.error('Error: --task is required for spawn command');
+      console.error('Usage: gastown spawn <role> --task "<description>"');
+      Deno.exit(1);
+    }
+
+    try {
+      const result = await spawnAgent({
+        role: role as RoleName,
+        task: args.task,
+        convoyId: args.convoy,
+        convoyName: args['convoy-name'],
+        contextPath: args.context,
+      });
+
+      console.log(`Spawned ${role} agent`);
+      console.log(`  Agent ID: ${result.agentId}`);
+      console.log(`  Convoy: ${result.convoyId}`);
+      console.log(`  Pane: ${result.paneIndex}`);
+    } catch (error) {
+      console.error(`Failed to spawn ${role}:`, (error as Error).message);
+      Deno.exit(1);
+    }
     return;
   }
 
