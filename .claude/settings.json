@@ -2,6 +2,10 @@
   "enabledPlugins": {
     "beads@beads-marketplace": true
   },
+  "enableAllProjectMcpServers": true,
+  "enabledMcpjsonServers": [
+    "beads"
+  ],
   "hooks": {
     "SessionStart": [
       {
@@ -30,6 +34,8 @@
     "allow": [
       "Read",
       "Edit",
+      "Skill(superpowers:writing-plans)",
+      "Skill(superpowers:subagent-driven-development)",
       "mcp__beads__*",
       "Bash(bd:*)",
       "Bash(bd prime:*)",

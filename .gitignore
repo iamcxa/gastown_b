@@ -4,6 +4,7 @@
 # Compiled binary
 gastown
 gastown.exe
+gastown.old
 
 # OS
 .DS_Store
@@ -18,3 +19,9 @@ Thumbs.db
 convoy-test-*.bd
 
 .env
+
+# Test project
+test_project/
+
+# Local settings (user-specific)
+.claude/settings.local.json
