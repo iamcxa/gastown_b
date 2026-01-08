@@ -1,6 +1,9 @@
 // src/bd-cli/convoy.ts
 import { execBd, execBdJson } from './executor.ts';
 
+const CONVOY_LABEL = 'convoy';
+const CONVOY_TYPE = 'epic';
+
 export interface ConvoyCreateOptions {
   title: string;
   description?: string;
@@ -27,10 +30,14 @@ interface BdShowResult {
 }
 
 export async function createConvoy(options: ConvoyCreateOptions): Promise<ConvoyInfo> {
+  if (!options.title || options.title.trim() === '') {
+    throw new Error('Convoy title is required');
+  }
+
   const args = [
     'create',
     options.title,
-    '--type', 'epic',
+    '--type', CONVOY_TYPE,
     '--silent',
   ];
 
@@ -38,7 +45,7 @@ export async function createConvoy(options: ConvoyCreateOptions): Promise<Convoy
     args.push('--description', options.description);
   }
 
-  const labels = ['convoy', ...(options.labels || [])];
+  const labels = [CONVOY_LABEL, ...(options.labels || [])];
   if (options.maxWorkers) {
     labels.push(`max-workers:${options.maxWorkers}`);
   }
@@ -78,7 +85,7 @@ export async function closeConvoy(id: string, reason?: string): Promise<void> {
 }
 
 export async function listConvoys(status?: string): Promise<ConvoyInfo[]> {
-  const args = ['list', '--labels', 'convoy'];
+  const args = ['list', '--label', CONVOY_LABEL];
   if (status) {
     args.push('--status', status);
   }
