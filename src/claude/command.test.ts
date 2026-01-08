@@ -132,3 +132,15 @@ Deno.test('buildClaudeEnvVars - omits agent id when not provided', () => {
   const env = buildClaudeEnvVars('polecat', 'convoy-123', 'convoy-test');
   assertEquals(env['GASTOWN_AGENT_ID'], undefined);
 });
+
+Deno.test('buildClaudeCommand - includes agent id env var when provided', () => {
+  const cmd = buildClaudeCommand({
+    role: 'polecat',
+    agentDir: '/agents',
+    convoyId: 'convoy-123',
+    convoyName: 'test-convoy',
+    agentId: 'agent-456',
+  });
+
+  assertStringIncludes(cmd, 'GASTOWN_AGENT_ID=agent-456');
+});

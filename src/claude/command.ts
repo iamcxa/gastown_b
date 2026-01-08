@@ -28,6 +28,7 @@ export interface ClaudeCommandOptions {
   convoyName: string;
   contextPath?: string; // Path to convoy-context.md for autopilot mode
   mayorPaneIndex?: string; // Pane index where Mayor is running (for Prime Minister)
+  agentId?: string; // Agent's own bead ID for lifecycle tracking
   prompt?: string;
   resume?: boolean;
   workingDir?: string;
@@ -72,6 +73,7 @@ export function buildClaudeCommand(options: ClaudeCommandOptions): string {
     convoyName,
     contextPath,
     mayorPaneIndex,
+    agentId,
     prompt,
     resume,
     workingDir,
@@ -79,7 +81,7 @@ export function buildClaudeCommand(options: ClaudeCommandOptions): string {
     dangerouslySkipPermissions,
   } = options;
 
-  const envVars = buildClaudeEnvVars(role, convoyId, convoyName, contextPath, mayorPaneIndex);
+  const envVars = buildClaudeEnvVars(role, convoyId, convoyName, contextPath, mayorPaneIndex, agentId);
   const envString = Object.entries(envVars)
     .map(([key, value]) => `${key}=${value}`)
     .join(' ');
