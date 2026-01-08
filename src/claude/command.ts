@@ -24,7 +24,7 @@ export function shellEscapeDouble(str: string): string {
 export interface ClaudeCommandOptions {
   role: RoleName;
   agentDir: string;
-  bdPath: string;
+  convoyId: string;
   convoyName: string;
   contextPath?: string; // Path to convoy-context.md for autopilot mode
   mayorPaneIndex?: string; // Pane index where Mayor is running (for Prime Minister)
@@ -41,14 +41,14 @@ export function buildAgentFlag(role: RoleName, agentDir: string): string {
 
 export function buildClaudeEnvVars(
   role: RoleName,
-  bdPath: string,
+  convoyId: string,
   convoyName: string,
   contextPath?: string,
   mayorPaneIndex?: string
 ): Record<string, string> {
   const vars: Record<string, string> = {
     GASTOWN_ROLE: role,
-    GASTOWN_BD: bdPath,
+    GASTOWN_BD: convoyId,
     GASTOWN_CONVOY: convoyName,
   };
   if (contextPath) {
@@ -64,7 +64,7 @@ export function buildClaudeCommand(options: ClaudeCommandOptions): string {
   const {
     role,
     agentDir,
-    bdPath,
+    convoyId,
     convoyName,
     contextPath,
     mayorPaneIndex,
@@ -75,7 +75,7 @@ export function buildClaudeCommand(options: ClaudeCommandOptions): string {
     dangerouslySkipPermissions,
   } = options;
 
-  const envVars = buildClaudeEnvVars(role, bdPath, convoyName, contextPath, mayorPaneIndex);
+  const envVars = buildClaudeEnvVars(role, convoyId, convoyName, contextPath, mayorPaneIndex);
   const envString = Object.entries(envVars)
     .map(([key, value]) => `${key}=${value}`)
     .join(' ');
