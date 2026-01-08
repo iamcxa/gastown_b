@@ -20,7 +20,7 @@ Deno.test('buildClaudeCommand - basic command without prompt', () => {
   const cmd = buildClaudeCommand({
     role: 'mayor',
     agentDir: '/agents',
-    bdPath: '/test.bd',
+    convoyId: 'test-convoy-id',
     convoyName: 'test',
   });
 
@@ -33,7 +33,7 @@ Deno.test('buildClaudeCommand - includes prompt when provided', () => {
   const cmd = buildClaudeCommand({
     role: 'mayor',
     agentDir: '/agents',
-    bdPath: '/test.bd',
+    convoyId: 'test-convoy-id',
     convoyName: 'test',
     prompt: 'Implement auth feature',
   });
@@ -46,7 +46,7 @@ Deno.test('buildClaudeCommand - includes resume flag', () => {
   const cmd = buildClaudeCommand({
     role: 'polecat',
     agentDir: '/agents',
-    bdPath: '/test.bd',
+    convoyId: 'test-convoy-id',
     convoyName: 'test',
     resume: true,
   });
@@ -58,7 +58,7 @@ Deno.test('buildClaudeCommand - includes working directory', () => {
   const cmd = buildClaudeCommand({
     role: 'polecat',
     agentDir: '/agents',
-    bdPath: '/test.bd',
+    convoyId: 'test-convoy-id',
     convoyName: 'test',
     workingDir: '/project',
   });
@@ -84,7 +84,7 @@ Deno.test('buildClaudeCommand - includes context env var for autopilot mode', ()
   const cmd = buildClaudeCommand({
     role: 'mayor',
     agentDir: '/agents',
-    bdPath: '/test.bd',
+    convoyId: 'test-convoy-id',
     convoyName: 'test',
     contextPath: '/path/to/context.md',
   });
@@ -110,7 +110,7 @@ Deno.test('buildClaudeCommand - includes mayor pane env var for prime role', () 
   const cmd = buildClaudeCommand({
     role: 'prime',
     agentDir: '/agents',
-    bdPath: '/test.bd',
+    convoyId: 'test-convoy-id',
     convoyName: 'test',
     contextPath: '/path/to/context.md',
     mayorPaneIndex: '0',
