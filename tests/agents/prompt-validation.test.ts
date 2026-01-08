@@ -20,7 +20,7 @@ const AGENT_VALIDATIONS: AgentValidation[] = [
   {
     name: 'mayor',
     required: [
-      'gastown spawn',
+      '$GASTOWN_BIN spawn', // Uses env var for gastown binary path
       'bd show $GASTOWN_BD',
       'bd comments',
       'NEVER do implementation work yourself',
@@ -35,9 +35,9 @@ const AGENT_VALIDATIONS: AgentValidation[] = [
       'implement the following', // Direct implementation instruction
     ],
     requiredCommands: [
-      'gastown spawn planner',
-      'gastown spawn foreman',
-      'gastown spawn polecat',
+      '$GASTOWN_BIN spawn planner',
+      '$GASTOWN_BIN spawn foreman',
+      '$GASTOWN_BIN spawn polecat',
     ],
   },
   {
@@ -164,9 +164,10 @@ Deno.test('Embedded prompts: buildPrimePrompt uses bd CLI', async () => {
   assertEquals(hasBdFile, false, 'buildPrimePrompt still references "write to bd file"');
 });
 
-Deno.test('Embedded prompts: buildPrimeMayorPrompt uses gastown spawn', async () => {
+Deno.test('Embedded prompts: buildPrimeMayorPrompt uses $GASTOWN_BIN spawn', async () => {
   const content = await Deno.readTextFile('src/claude/command.ts');
 
-  // Should reference gastown spawn
-  assertStringIncludes(content, 'gastown spawn');
+  // Should reference $GASTOWN_BIN spawn (env var) or gastown spawn (backward compat)
+  const hasGastownRef = content.includes('gastown spawn') || content.includes('$GASTOWN_BIN spawn');
+  assertEquals(hasGastownRef, true, 'buildPrimeMayorPrompt should reference spawn command');
 });

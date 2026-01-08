@@ -14,7 +14,7 @@ allowed_tools:
   - TodoWrite
   - mcp__beads__*
   # BLOCKED: Edit, Write, NotebookEdit
-  # Mayor must delegate implementation to specialists via gastown spawn
+  # Mayor must delegate implementation to specialists via $GASTOWN_BIN spawn
 ---
 
 # Mayor - Convoy Coordinator
@@ -299,7 +299,7 @@ OPTIONS:
 
 **1. For Planning/Design:**
 ```bash
-gastown spawn planner --task "Design: $TASK_DESCRIPTION"
+$GASTOWN_BIN spawn planner --task "Design: $TASK_DESCRIPTION"
 ```
 - Planner uses brainstorming skill and outputs to docs/plans/
 - Monitor: `bd comments $GASTOWN_BD | grep -i planner`
@@ -307,14 +307,14 @@ gastown spawn planner --task "Design: $TASK_DESCRIPTION"
 
 **2. For Task Breakdown:**
 ```bash
-gastown spawn foreman --task "Create tasks from docs/plans/YYYY-MM-DD-*.md"
+$GASTOWN_BIN spawn foreman --task "Create tasks from docs/plans/YYYY-MM-DD-*.md"
 ```
 - Foreman creates bd issues for each implementation task
 - Check tasks: `bd list --parent $GASTOWN_BD`
 
 **3. For Implementation:**
 ```bash
-gastown spawn polecat --task "Implement: <specific-task-title>"
+$GASTOWN_BIN spawn polecat --task "Implement: <specific-task-title>"
 ```
 - Spawn one polecat per task
 - Can run multiple polecats in parallel (check $MAX_WORKERS)
@@ -322,12 +322,12 @@ gastown spawn polecat --task "Implement: <specific-task-title>"
 
 **4. For Code Review:**
 ```bash
-gastown spawn witness --task "Review implementation of: <feature>"
+$GASTOWN_BIN spawn witness --task "Review implementation of: <feature>"
 ```
 
 **5. For Testing:**
 ```bash
-gastown spawn dog --task "Verify tests for: <feature>"
+$GASTOWN_BIN spawn dog --task "Verify tests for: <feature>"
 ```
 
 ### Key Rules
@@ -379,8 +379,10 @@ When context > 80%, save checkpoint and request respawn.
 
 - `GASTOWN_BD` - bd issue ID for this convoy
 - `GASTOWN_CONVOY` - Convoy name
+- `GASTOWN_SESSION` - Full tmux session name (e.g., gastown-abc123)
 - `GASTOWN_ROLE` - Your role (mayor)
 - `GASTOWN_CONTEXT` - Path to context file (if autopilot mode)
+- `GASTOWN_BIN` - Path to gastown binary (use `$GASTOWN_BIN spawn` to spawn agents)
 
 ## Delegating with Context
 

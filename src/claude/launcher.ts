@@ -15,6 +15,7 @@ export interface LaunchConfig {
   mayorPaneIndex?: string; // Pane index where Mayor is running (for Prime Minister)
   primeMode?: boolean; // Whether Prime Minister mode is active (affects Mayor's prompt)
   dangerouslySkipPermissions?: boolean; // Skip all permission prompts (use with caution!)
+  gastownBinPath?: string; // Path to gastown binary (auto-detected if not provided)
 }
 
 /**
@@ -71,9 +72,20 @@ export function getRoleAgentPath(role: RoleName, agentDir: string): string {
   return `${agentDir}/${role}.md`;
 }
 
+/**
+ * Get the path to the gastown binary.
+ * Uses the gastown installation directory to find gastown.ts
+ */
+export function getGastownBinPath(): string {
+  const installDir = getGastownInstallDir();
+  return `${installDir}/gastown.ts`;
+}
+
 export function buildLaunchConfig(config: LaunchConfig): ClaudeCommandOptions {
   const agentDir = getDefaultAgentDir(config.projectDir, config.role, config.agentsDir);
   const prompt = buildRolePrompt(config.role, config.task, config.checkpoint, config.contextPath, config.primeMode);
+  // Auto-detect gastown binary path if not provided
+  const gastownBinPath = config.gastownBinPath || getGastownBinPath();
 
   return {
     role: config.role,
@@ -82,6 +94,7 @@ export function buildLaunchConfig(config: LaunchConfig): ClaudeCommandOptions {
     convoyName: config.convoyName,
     contextPath: config.contextPath,
     mayorPaneIndex: config.mayorPaneIndex,
+    gastownBinPath,
     prompt,
     resume: config.checkpoint !== undefined,
     workingDir: config.projectDir,

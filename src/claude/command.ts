@@ -29,6 +29,7 @@ export interface ClaudeCommandOptions {
   contextPath?: string; // Path to convoy-context.md for autopilot mode
   mayorPaneIndex?: string; // Pane index where Mayor is running (for Prime Minister)
   agentId?: string; // Agent's own bead ID for lifecycle tracking
+  gastownBinPath?: string; // Absolute path to gastown binary for spawning agents
   prompt?: string;
   resume?: boolean;
   workingDir?: string;
@@ -46,13 +47,20 @@ export function buildClaudeEnvVars(
   convoyName: string,
   contextPath?: string,
   mayorPaneIndex?: string,
-  agentId?: string
+  agentId?: string,
+  gastownBinPath?: string
 ): Record<string, string> {
   const vars: Record<string, string> = {
     GASTOWN_ROLE: role,
     GASTOWN_BD: convoyId,
     GASTOWN_CONVOY: convoyName,
+    // Full tmux session name (gastown-{convoyId})
+    GASTOWN_SESSION: `gastown-${convoyId}`,
   };
+  // Path to gastown binary for spawning agents
+  if (gastownBinPath) {
+    vars.GASTOWN_BIN = gastownBinPath;
+  }
   if (contextPath) {
     vars.GASTOWN_CONTEXT = contextPath;
   }
@@ -74,6 +82,7 @@ export function buildClaudeCommand(options: ClaudeCommandOptions): string {
     contextPath,
     mayorPaneIndex,
     agentId,
+    gastownBinPath,
     prompt,
     resume,
     workingDir,
@@ -81,7 +90,7 @@ export function buildClaudeCommand(options: ClaudeCommandOptions): string {
     dangerouslySkipPermissions,
   } = options;
 
-  const envVars = buildClaudeEnvVars(role, convoyId, convoyName, contextPath, mayorPaneIndex, agentId);
+  const envVars = buildClaudeEnvVars(role, convoyId, convoyName, contextPath, mayorPaneIndex, agentId, gastownBinPath);
   const envString = Object.entries(envVars)
     .map(([key, value]) => `${key}=${value}`)
     .join(' ');
@@ -127,40 +136,61 @@ export function buildClaudeCommand(options: ClaudeCommandOptions): string {
  * Build the Prime Minister prompt with detailed workflow instructions.
  *
  * PM monitors bd comments for questions and answers via bd CLI.
+ * PM is a PASSIVE MONITOR - it does NOT do any task work itself.
  */
 export function buildPrimePrompt(task: string, contextPath?: string, mayorPaneIndex?: string): string {
   const paneIndex = mayorPaneIndex ?? '0';
 
-  return `You are the Prime Minister (PM) - the human's decision proxy for this convoy.
+  return `You are the Prime Minister (PM) - the human's DECISION PROXY for this convoy.
 
-## Your Mission
-The convoy task is: "${task}"
-Your role is to answer Mayor's questions based on context and decision principles, so the convoy can proceed autonomously.
+## CRITICAL: You Are a PASSIVE MONITOR
+
+**DO NOT:**
+- Investigate or understand the task itself
+- Search for code, files, or documentation related to the task
+- Do any implementation or planning work
+- Act like a worker agent
+
+**YOUR ONLY JOB:**
+- Monitor for QUESTION comments from Mayor
+- Answer questions or escalate to human
+- Auto-approve Mayor's permission prompts
+
+The convoy task is "${task}" - but YOU DO NOT WORK ON IT.
+Mayor and other agents work on the task. You just answer their questions.
 
 ## Environment
 - Context file: ${contextPath ? '$GASTOWN_CONTEXT' : '(not provided - use your judgment)'}
 - Convoy ID: $GASTOWN_BD
+- tmux session: $GASTOWN_SESSION (full session name, e.g., gastown-abc123)
 - Mayor's pane index: ${paneIndex}
-- Your tmux session: $GASTOWN_CONVOY
 
 ## PM Workflow
 
-### 1. On Start
-${contextPath ? `- Read the context file at $GASTOWN_CONTEXT
-- Load decision principles into memory` : `- No context file provided - use general best practices`}
-- Check convoy state: bd show $GASTOWN_BD
-- Begin monitoring for questions
+### 1. On Start (Do These Steps ONLY)
+1. Display your greeting (character art from prime.md)
+${contextPath ? `2. Read the context file at $GASTOWN_CONTEXT and load decision principles
+3. Log: "📄 Context loaded: [X] Q&As, [Y] decision principles"` : `2. No context file - will use general best practices`}
+${contextPath ? '4' : '3'}. **Wait for Mayor's pane to be ready** (2-3 seconds)
+${contextPath ? '5' : '4'}. Begin the monitoring loop (step 2 below)
 
-### 2. Monitoring for Questions
-Poll bd comments for QUESTION markers:
+**IMPORTANT:**
+- Do NOT explore the codebase, search for task-related info, or try to understand the task.
+- If tmux capture-pane fails initially, wait a few seconds and retry - Mayor may still be starting up.
+
+### 2. Monitoring Loop (Your Main Job)
+Run this loop continuously:
 \`\`\`bash
+# Check for QUESTION comments every 2-3 seconds
 bd comments $GASTOWN_BD
+
+# Also check Mayor's pane for permission prompts
+tmux capture-pane -t "$GASTOWN_SESSION:0.${paneIndex}" -p -S -30
 \`\`\`
-Also monitor Mayor's pane output:
-\`\`\`bash
-tmux capture-pane -t "$GASTOWN_CONVOY:0.${paneIndex}" -p -l 100
-\`\`\`
-Poll every 2-3 seconds for new questions.
+
+If you see a QUESTION: comment → go to step 3
+If you see a permission prompt → go to step 6
+Otherwise → wait 2-3 seconds and check again
 
 ### 3. Question Detection
 Look for bd comments with:
@@ -181,13 +211,8 @@ Look for bd comments with:
 
 **Answer via bd CLI:**
 \`\`\`bash
-# High confidence answer
 bd comments add $GASTOWN_BD "ANSWER [high]: Use Supabase Auth.
 Reasoning: Integrates with existing Supabase setup (from context)."
-
-# Medium confidence answer
-bd comments add $GASTOWN_BD "ANSWER [medium]: Use REST API.
-Reasoning: Simpler than GraphQL for this use case (inferred from project scope)."
 \`\`\`
 
 ### 5. Escalating to Human
@@ -195,22 +220,30 @@ When confidence is low or none:
 \`\`\`bash
 bd comments add $GASTOWN_BD "ESCALATE: Need human decision on [question]"
 \`\`\`
-- Log: "👑 Need your decision: [question]"
+- Display: "👑 Need your decision: [question]"
 - Wait for human input in this pane
 - When human responds, write answer via bd CLI
 
-### 6. Decision Logging
-After each answer, log the decision:
+### 6. Permission Proxy (Auto-Approve Mayor's Tools)
+When you see permission prompts in Mayor's pane:
+- Type A (\`[Y/n]\`, \`Allow Edit/Write/Bash\`): Send \`y\` Enter
+- Type B (numbered with "don't ask again"): Send \`2\` Enter
+
 \`\`\`bash
-bd comments add $GASTOWN_BD "DECISION-LOG: q=[question], a=[answer], source=context|inferred|human, confidence=high|medium|low"
+# For Type A:
+tmux send-keys -t "$GASTOWN_SESSION:0.${paneIndex}" "y" Enter
+
+# For Type B (MCP/plugin prompts):
+tmux send-keys -t "$GASTOWN_SESSION:0.${paneIndex}" "2" Enter
 \`\`\`
 
 ## Important Rules
-- Do NOT ask the user directly unless confidence is low/none
-- Always provide reasoning for medium-confidence answers
-- Use bd comments for ALL communication with Mayor
-- Keep monitoring - Mayor may have multiple questions
-- Prioritize QUESTION comments over pane scanning`;
+- **DO NOT** investigate or work on the task itself
+- **DO NOT** search the codebase or external resources
+- **DO** stay in the monitoring loop
+- **DO** answer questions from context/principles or escalate
+- **DO** auto-approve permission prompts for Mayor
+- Use bd comments for ALL communication with Mayor`;
 }
 
 /**
