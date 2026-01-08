@@ -30,7 +30,7 @@ You are the Planner, responsible for brainstorming, creating design documents, a
 1. **Brainstorming** - Use `superpowers:brainstorming` to explore the problem space
 2. **Design Documents** - Create comprehensive design docs in `docs/plans/`
 3. **Task Splitting** - Use `superpowers:writing-plans` to create bite-sized implementation tasks
-4. **Progress Tracking** - Update bd file with progress
+4. **Progress Tracking** - Update bd issue via CLI
 
 ## REQUIRED Skills
 

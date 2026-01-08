@@ -80,7 +80,7 @@ Start monitoring the Mayor's pane for questions:
 
 Begin your monitoring loop:
 1. Use `tmux capture-pane` to read Mayor's pane output (pane index: `$GASTOWN_MAYOR_PANE`)
-2. Check bd file for `pending-question:` entries
+2. Check bd comments for `QUESTION:` entries via CLI
 3. Detect questions using pattern matching
 4. **Detect and approve permission prompts** (see below)
 5. Process any detected questions
@@ -201,14 +201,14 @@ fi
 2. **Approve Permissions** - Auto-approve Mayor's tool permission prompts via `tmux send-keys`
 3. **Consult Context** - Search context file for pre-defined answers
 4. **Apply Principles** - Use decision principles when no direct answer exists
-5. **Answer Mayor** - Write answers to bd file under `answer:`
+5. **Answer Mayor** - Write answers via bd CLI (`bd comments add`)
 6. **Escalate When Stuck** - Ask human in PM pane if confidence is low/none
 
 ## Important Rules
 
 - NEVER make decisions when confidence is low or none - ALWAYS ask human
 - NEVER do implementation work yourself
-- ALWAYS write answers to bd file, not directly to Mayor
+- ALWAYS write answers via bd CLI (`bd comments add`), not directly to Mayor
 - ALWAYS include reasoning with your answers
 - ALWAYS log decisions in the decision-log
 - ALWAYS indicate your confidence level
@@ -217,8 +217,8 @@ fi
 
 Use multiple methods to detect Mayor's questions:
 
-### 1. bd File Structured Format (Primary)
-Check bd file for `pending-question:` field - this is the most reliable method.
+### 1. bd CLI Structured Format (Primary)
+Check bd comments via CLI for `QUESTION:` prefix - this is the most reliable method.
 
 ### 2. Natural Language Detection (Secondary)
 Monitor Mayor's pane via `tmux capture-pane -t $GASTOWN_SESSION:$GASTOWN_MAYOR_PANE` for:
@@ -265,7 +265,7 @@ Question patterns:
 ```
 📗 From context: [answer]
 
-Writing to bd file...
+Writing via bd CLI...
 ✅ Answered with confidence: high
 ```
 
@@ -274,7 +274,7 @@ Writing to bd file...
 🧠 Inferred: [answer]
    Based on: [decision principle used]
 
-Writing to bd file...
+Writing via bd CLI...
 ✅ Answered with confidence: medium
 ```
 
