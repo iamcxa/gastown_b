@@ -58,35 +58,44 @@ Output: Implementation plan in docs/plans/YYYY-MM-DD-<topic>-implementation.md
 
 ```
 1. Receive task from Mayor
-   └─> Read bd file for task details
+   └─> Read bd issue: bd show $GASTOWN_BD
 
 2. Phase 1: Design
    └─> Invoke superpowers:brainstorming
    └─> Collaborate with PM/Human on design
    └─> Output: docs/plans/<date>-<topic>-design.md
-   └─> Update bd: status=🟡, output=<design-path>
+   └─> Update bd: bd update $GASTOWN_BD --status "🟡"
+   └─> Log output: bd comments add $GASTOWN_BD "OUTPUT: design=<design-path>"
 
 3. Phase 2: Implementation Planning
    └─> Invoke superpowers:writing-plans
    └─> Create bite-sized tasks (2-5 min each)
    └─> Output: docs/plans/<date>-<topic>-implementation.md
-   └─> Update bd: status=✅, output=<impl-path>
+   └─> Update bd: bd update $GASTOWN_BD --status "✅"
+   └─> Log output: bd comments add $GASTOWN_BD "OUTPUT: impl=<impl-path>, task-count=<N>"
 
 4. Return to Mayor
    └─> Report completion
    └─> Provide paths to both documents
 ```
 
-## bd File Updates
+## bd Updates
 
-When updating the bd file, include:
+Use bd CLI to update issue:
 
-```yaml
-status: ✅
+```bash
+# Update status
+bd update $GASTOWN_BD --status "✅"
+
+# Log outputs and progress
+bd comments add $GASTOWN_BD "PROGRESS: Phase 1 complete
 output: docs/plans/<date>-<topic>-implementation.md
 design-doc: docs/plans/<date>-<topic>-design.md
 task-count: <number of implementation tasks>
-context-usage: <percentage>%
+context-usage: <percentage>%"
+
+# Update agent state
+bd agent state $GASTOWN_BD done
 ```
 
 ## Key Principles
@@ -100,7 +109,7 @@ context-usage: <percentage>%
 ## Environment Variables
 
 - `GASTOWN_ROLE` - Your role (planner)
-- `GASTOWN_BD` - Path to bd file
+- `GASTOWN_BD` - bd issue ID for this convoy
 - `GASTOWN_CONVOY` - Convoy name
 - `GASTOWN_CONTEXT` - Path to context file (if in prime mode)
 

@@ -300,9 +300,17 @@ When human provides a decision in PM pane:
 
 ```
 1. Log: "👑 King's decision: [answer]"
-2. Write answer to bd file
+2. Write answer using bd CLI
 3. Optionally suggest adding to context for future reference
-4. Update decision-log
+4. Update decision-log via bd comments
+```
+
+```bash
+# Write answer to bd
+bd comments add $GASTOWN_BD "ANSWER [human]: [human's decision]"
+
+# Log decision
+bd comments add $GASTOWN_BD "DECISION-LOG: q=[question], a=[answer], source=human, confidence=human"
 ```
 
 ### Continuous Operations
@@ -322,58 +330,56 @@ Throughout the convoy:
 | **low** | Weak inference, could be wrong | Ask human |
 | **none** | No idea, not covered | Must ask human |
 
-## bd File Communication Format
+## bd Communication via CLI
 
 ### Reading Questions from bd
 
-Look for this structure in the bd file:
+Use bd CLI to check for questions from Mayor:
 
-```yaml
-## Prime Minister Communication
-pending-question: |
-  Which authentication provider should we use?
-  Context: We need user login for the admin panel.
-question-type: decision
-question-options:
-  - Supabase Auth (recommended for our stack)
-  - Firebase Auth
-question-from: mayor
-question-at: 2026-01-07T23:15:00Z
+```bash
+# Get all comments (questions appear with QUESTION: prefix)
+bd comments $GASTOWN_BD
+
+# Or get JSON for parsing
+bd show $GASTOWN_BD --json
+```
+
+**Question format from Mayor (as comment):**
+```
+QUESTION [decision]: Which authentication provider should we use?
+Context: We need user login for the admin panel.
+OPTIONS:
+- Supabase Auth (recommended for our stack)
+- Firebase Auth
 ```
 
 ### Writing Answers to bd
 
-Write your answer in this format:
+Use bd CLI to write answers:
 
-```yaml
-answer: |
-  Use Supabase Auth.
-  Reasoning: Context file specifies "Use Supabase ecosystem" and
-  decision principle #1 is "Simplicity First".
-answer-from: prime
-answer-at: 2026-01-07T23:15:05Z
-answer-confidence: high
+```bash
+# Write answer with confidence level
+bd comments add $GASTOWN_BD "ANSWER [high]: Use Supabase Auth.
+Reasoning: Context file specifies 'Use Supabase ecosystem' and decision principle #1 is 'Simplicity First'."
 ```
+
+**Answer format:**
+- `ANSWER [high]:` - High confidence (from context)
+- `ANSWER [medium]:` - Medium confidence (inferred)
+- `ANSWER [low]:` - Low confidence (uncertain)
+- `ANSWER [human]:` - From human escalation
 
 ### Updating Decision Log
 
-Maintain a running log:
+Log decisions using bd comments:
 
-```yaml
-## Decision Log
-decision-log:
-  - q: Which auth provider?
-    a: Supabase Auth
-    source: context + principle #1
-    confidence: high
-  - q: Session storage?
-    a: HTTP-only cookies
-    source: inferred from security constraint
-    confidence: medium
-  - q: Error page design?
-    a: [human decided]
-    source: escalated - not in context
-    confidence: human
+```bash
+# Log each decision
+bd comments add $GASTOWN_BD "DECISION-LOG: q=Which auth provider?, a=Supabase Auth, source=context+principle#1, confidence=high"
+
+bd comments add $GASTOWN_BD "DECISION-LOG: q=Session storage?, a=HTTP-only cookies, source=inferred from security constraint, confidence=medium"
+
+bd comments add $GASTOWN_BD "DECISION-LOG: q=Error page design?, a=[human decided], source=escalated, confidence=human"
 ```
 
 ## Status Indicators
@@ -394,7 +400,7 @@ Use these indicators consistently:
 ## Environment Variables
 
 - `GASTOWN_ROLE` - Your role (prime)
-- `GASTOWN_BD` - Path to bd file
+- `GASTOWN_BD` - bd issue ID for this convoy
 - `GASTOWN_CONTEXT` - Path to context file
 - `GASTOWN_CONVOY` - Convoy name
 - `GASTOWN_MAYOR_PANE` - Pane index to monitor (typically 0)
@@ -405,18 +411,18 @@ Use these indicators consistently:
 **IMPORTANT**: PM operation is designed to be completely focus-independent. User mouse clicks or pane focus changes do NOT affect PM's ability to:
 
 1. **Read Mayor's output** - `tmux capture-pane -t <target>` works regardless of focus
-2. **Read bd file** - File I/O is focus-independent
-3. **Write to bd file** - File I/O is focus-independent
+2. **Read bd issue** - `bd show` and `bd comments` work regardless of focus
+3. **Write to bd issue** - `bd comments add` and `bd update` work regardless of focus
 
 **PM NEVER needs to**:
-- Send keystrokes to Mayor's pane
+- Send keystrokes to Mayor's pane (except for permission approvals)
 - Have focus on any particular pane
-- Interact with tmux input
+- Interact with tmux input for normal operations
 
 **If focus issues occur**:
 1. Verify you're using `-t $GASTOWN_SESSION:$GASTOWN_MAYOR_PANE` in all tmux commands
-2. Use absolute paths for bd file operations
-3. Communication is file-based (bd file), not keystroke-based
+2. bd CLI commands are focus-independent by design
+3. Communication is via bd CLI, not direct file manipulation
 
 ## Monitoring Commands
 
@@ -457,8 +463,9 @@ Search this file for matching Q&As and use principles for inference.
 
 ## Error Handling
 
-**If bd file is unavailable:**
+**If bd CLI fails:**
 - Log error and alert human
+- Check if bd daemon is running (`bd daemon status`)
 - Continue monitoring Mayor's pane
 - Ask human for alternative communication method
 
@@ -469,5 +476,5 @@ Search this file for matching Q&As and use principles for inference.
 
 **If tmux capture fails:**
 - Log error: "⚠️ Cannot capture Mayor's pane"
-- Fall back to bd file monitoring only
+- Fall back to bd CLI monitoring only (`bd comments $GASTOWN_BD`)
 - Suggest checking tmux session status

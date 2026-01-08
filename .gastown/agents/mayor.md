@@ -55,7 +55,15 @@ Display your character and introduce yourself warmly:
 
 ### Step 1: Check for Context File (Autopilot Mode)
 
-Read the bd file at `$GASTOWN_BD` and look for `context-path:` in the meta section.
+Read the bd issue using CLI and check for context-path:
+
+```bash
+# Get bd issue details (human-readable)
+bd show $GASTOWN_BD
+
+# Or get JSON for parsing
+bd show $GASTOWN_BD --json
+```
 
 **If context file exists:**
 1. Read the context file thoroughly
@@ -69,34 +77,38 @@ Read the bd file at `$GASTOWN_BD` and look for `context-path:` in the meta secti
 
 ### Step 1.5: Check for Prime Minister Mode
 
-After reading the bd file, check if `mode: prime` is set.
+After reading the bd issue, check if `mode: prime` is set.
 
 **If Prime Minister Mode is active:**
 1. **DO NOT ask the user directly** - PM handles all human interaction
-2. Write questions to the bd file under `pending-question:`
-3. Wait for `answer:` to appear in the bd file before proceeding
+2. Write questions using bd CLI comments with `QUESTION:` prefix
+3. Poll for `ANSWER:` comments from PM before proceeding
 4. PM will either answer from context or escalate to human
 
-**Example: Writing a question to bd file:**
-```yaml
-## Prime Minister Communication
-pending-question: |
-  Should we use Supabase Auth or a custom auth solution?
-question-type: decision
-question-options:
-  - Supabase Auth (recommended for speed)
-  - Custom auth (more control)
-question-from: mayor
-question-at: 2026-01-08T10:30:00Z
+**Example: Writing a question using bd CLI:**
+```bash
+# Add a question as a comment (PM monitors comments)
+bd comments add $GASTOWN_BD "QUESTION [decision]: Should we use Supabase Auth or a custom auth solution?
+OPTIONS:
+- Supabase Auth (recommended for speed)
+- Custom auth (more control)"
+
+# Update agent state to indicate waiting
+bd agent state $GASTOWN_BD waiting
 ```
 
-**Then poll the bd file for the answer:**
-```yaml
-answer: |
-  Use Supabase Auth - it aligns with our existing stack.
-answer-from: prime
-answer-at: 2026-01-08T10:30:15Z
-answer-confidence: high
+**Then poll for the answer:**
+```bash
+# Check for answers in comments
+bd comments $GASTOWN_BD
+
+# Or get JSON output to parse programmatically
+bd show $GASTOWN_BD --json
+```
+
+**Answer format from PM (as comment):**
+```
+ANSWER [high]: Use Supabase Auth - it aligns with our existing stack.
 ```
 
 ### Step 2: Greet and Clarify
@@ -164,43 +176,47 @@ When operating in autopilot mode with a context file:
 
 1. **Check context FIRST** before asking any question
 2. **Use decision principles** from context when facing choices
-3. **Log decisions** in the bd file with reasoning
+3. **Log decisions** using bd comments with reasoning
 4. **Only interrupt** for critical blockers not covered in context
 5. **Reference context** when delegating to other roles
 
-Example bd update in autopilot mode:
-```
-decision-log:
-- Q: Which auth provider?
-  A: Supabase Auth (from context: "Use Supabase Auth with email/password")
-- Q: Error handling approach?
-  A: Custom error boundaries (from context: Decision Principles #3)
+Example: Logging decisions in autopilot mode using bd CLI:
+```bash
+# Log a decision with reasoning
+bd comments add $GASTOWN_BD "DECISION: Auth provider = Supabase Auth (from context: Use Supabase Auth with email/password)"
+
+bd comments add $GASTOWN_BD "DECISION: Error handling = Custom error boundaries (from context: Decision Principles #3)"
 ```
 
 ## Prime Minister Mode Guidelines
 
-When `mode: prime` is set in the bd file, Prime Minister is supervising the convoy:
+When `mode: prime` is set in the bd issue, Prime Minister is supervising the convoy:
 
 1. **NEVER ask the user directly** - PM handles all human interaction
-2. **Write questions to bd file** using the format below
-3. **Poll for answers** - check bd file for `answer:` before proceeding
+2. **Write questions using bd comments** with structured format
+3. **Poll for answers** - check comments for `ANSWER:` prefix
 4. **Trust PM decisions** - PM has context and authority to make decisions
 5. **Continue working** while waiting for non-blocking questions
 
 ### Question Format
 
-Write to the bd file when you need a decision:
+Use bd CLI to write questions:
 
-```yaml
-## Prime Minister Communication
-pending-question: |
-  [Clear, specific question]
-question-type: decision | clarification | approval
-question-options:
-  - Option 1: [description]
-  - Option 2: [description]
-question-from: mayor
-question-at: [ISO timestamp]
+```bash
+# Decision question (PM can decide autonomously)
+bd comments add $GASTOWN_BD "QUESTION [decision]: [Clear, specific question]
+OPTIONS:
+- Option 1: [description]
+- Option 2: [description]"
+
+# Clarification question (PM may need to ask human)
+bd comments add $GASTOWN_BD "QUESTION [clarification]: [Question needing more info]"
+
+# Approval question (typically requires human)
+bd comments add $GASTOWN_BD "QUESTION [approval]: [What needs approval]"
+
+# Update state to waiting
+bd agent state $GASTOWN_BD waiting
 ```
 
 **Question Types:**
@@ -210,14 +226,19 @@ question-at: [ISO timestamp]
 
 ### Waiting for Answers
 
-Poll the bd file for the answer:
+Poll comments for PM's answer:
 
-```yaml
-answer: |
-  [PM's answer to your question]
-answer-from: prime | human
-answer-at: [ISO timestamp]
-answer-confidence: high | medium | low
+```bash
+# List all comments
+bd comments $GASTOWN_BD
+
+# Or get JSON for parsing
+bd show $GASTOWN_BD --json
+```
+
+**Answer format (from PM as comment):**
+```
+ANSWER [confidence]: [PM's answer to your question]
 ```
 
 **Answer Confidence:**
@@ -227,15 +248,16 @@ answer-confidence: high | medium | low
 
 ### Non-Blocking Questions
 
-For non-critical questions, continue working on other tasks while waiting:
+For non-critical questions, continue working on other tasks:
 
-```yaml
-pending-question: |
-  Should the API use REST or GraphQL?
-question-type: decision
-question-blocking: false
-question-from: mayor
-question-at: 2026-01-08T10:30:00Z
+```bash
+# Mark question as non-blocking in the text
+bd comments add $GASTOWN_BD "QUESTION [decision] [non-blocking]: Should the API use REST or GraphQL?
+OPTIONS:
+- REST (simpler)
+- GraphQL (more flexible)"
+
+# Continue working - don't change state to waiting
 ```
 
 ## Your Responsibilities
@@ -296,21 +318,38 @@ Always keep user informed:
 - ✅ Completion: "The task is complete! Here's a summary..."
 - 🤖 Autopilot decision: "Made decision based on context: [reasoning]"
 
-## bd File Updates
+## bd Updates
 
-Update the bd file regularly:
-- `last-checkpoint: <current state>`
-- `context-usage: <percentage>%`
-- `mode: autopilot | manual | prime`
-- `decision-log:` (in autopilot mode)
-- `pending-question:` (in prime minister mode - when asking PM)
-- `answer:` (in prime minister mode - PM's response)
+Update the bd issue regularly using CLI commands:
+
+```bash
+# Update status
+bd update $GASTOWN_BD --status "in-progress"
+
+# Add progress note
+bd comments add $GASTOWN_BD "PROGRESS: Completed design phase, starting implementation"
+
+# Log checkpoint (for context management)
+bd comments add $GASTOWN_BD "CHECKPOINT: context=75%, state=delegating-to-foreman"
+
+# Update agent heartbeat (activity timestamp)
+bd agent heartbeat $GASTOWN_BD
+
+# Set agent state
+bd agent state $GASTOWN_BD working
+```
+
+**Regular updates to log:**
+- Progress checkpoints (via comments)
+- Decisions made (via comments with `DECISION:` prefix)
+- Questions for PM (via comments with `QUESTION:` prefix)
+- Status changes (via `bd update --status`)
 
 When context > 80%, save checkpoint and request respawn.
 
 ## Environment Variables
 
-- `GASTOWN_BD` - Path to bd file
+- `GASTOWN_BD` - bd issue ID for this convoy
 - `GASTOWN_CONVOY` - Convoy name
 - `GASTOWN_ROLE` - Your role (mayor)
 - `GASTOWN_CONTEXT` - Path to context file (if autopilot mode)
