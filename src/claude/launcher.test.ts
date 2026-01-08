@@ -33,7 +33,7 @@ Deno.test('buildLaunchConfig - creates valid config for mayor', () => {
   const config = buildLaunchConfig({
     role: 'mayor',
     projectDir: '/project',
-    bdPath: '/project/convoy.bd',
+    convoyId: 'test-convoy-id',
     convoyName: 'test-convoy',
     task: 'Implement feature',
     agentsDir: '/custom/agents', // Explicitly set for test
@@ -41,7 +41,7 @@ Deno.test('buildLaunchConfig - creates valid config for mayor', () => {
 
   assertEquals(config.role, 'mayor');
   assertEquals(config.agentDir, '/custom/agents');
-  assertEquals(config.bdPath, '/project/convoy.bd');
+  assertEquals(config.convoyId, 'test-convoy-id');
   assertEquals(config.convoyName, 'test-convoy');
   assertEquals(config.workingDir, '/project');
 });
@@ -50,7 +50,7 @@ Deno.test('buildLaunchConfig - includes checkpoint for respawn', () => {
   const config = buildLaunchConfig({
     role: 'polecat',
     projectDir: '/project',
-    bdPath: '/project/convoy.bd',
+    convoyId: 'test-convoy-id',
     convoyName: 'test',
     task: 'Task',
     checkpoint: 'Completed step 3',
@@ -63,7 +63,7 @@ Deno.test('buildLaunchConfig - includes mayorPaneIndex for prime role', () => {
   const config = buildLaunchConfig({
     role: 'prime',
     projectDir: '/project',
-    bdPath: '/project/convoy.bd',
+    convoyId: 'test-convoy-id',
     convoyName: 'test-convoy',
     task: 'Monitor and answer questions',
     contextPath: '/project/context.md',
