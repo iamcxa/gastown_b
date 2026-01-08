@@ -1,4 +1,6 @@
 import { loadConfig, saveConfig, generateDefaultConfig } from './config.ts';
+import { extractIssueIds, findDuplicateConvoys } from './duplicate-check.ts';
+import { promptConvoySelection } from './prompt.ts';
 import { createNewBd, writeBdFile, parseBdFile } from '../bd/mod.ts';
 import { launchMayor, launchPrime } from '../claude/launcher.ts';
 import {
@@ -136,6 +138,25 @@ export async function startConvoyWithBd(
   if (!task || task.trim() === '') {
     throw new Error('Task description is required');
   }
+
+  // === Duplicate detection ===
+  const issueIds = extractIssueIds(task);
+  if (issueIds.length > 0) {
+    const duplicates = await findDuplicateConvoys(issueIds);
+    if (duplicates.length > 0) {
+      const selection = await promptConvoySelection(duplicates);
+
+      if (selection.action === 'resume') {
+        return resumeConvoyWithBd(selection.convoyId, options);
+      }
+      if (selection.action === 'cancel') {
+        throw new Error('Cancelled by user');
+      }
+      // action === 'create': continue with normal flow
+      console.log('創建新的 convoy...');
+    }
+  }
+  // === End duplicate detection ===
 
   const projectDir = options.projectDir || Deno.cwd();
   const config = await loadConfig(projectDir);
