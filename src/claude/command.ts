@@ -1,4 +1,5 @@
 import type { RoleName } from '../types.ts';
+import { getRoleSkillInstructions } from './skills.ts';
 
 /**
  * Escape a string for safe use in shell single quotes.
@@ -48,7 +49,7 @@ export function buildClaudeEnvVars(
   contextPath?: string,
   mayorPaneIndex?: string,
   agentId?: string,
-  gastownBinPath?: string
+  gastownBinPath?: string,
 ): Record<string, string> {
   const vars: Record<string, string> = {
     GASTOWN_ROLE: role,
@@ -90,7 +91,15 @@ export function buildClaudeCommand(options: ClaudeCommandOptions): string {
     dangerouslySkipPermissions,
   } = options;
 
-  const envVars = buildClaudeEnvVars(role, convoyId, convoyName, contextPath, mayorPaneIndex, agentId, gastownBinPath);
+  const envVars = buildClaudeEnvVars(
+    role,
+    convoyId,
+    convoyName,
+    contextPath,
+    mayorPaneIndex,
+    agentId,
+    gastownBinPath,
+  );
   const envString = Object.entries(envVars)
     .map(([key, value]) => `${key}=${value}`)
     .join(' ');
@@ -138,7 +147,11 @@ export function buildClaudeCommand(options: ClaudeCommandOptions): string {
  * PM monitors bd comments for questions and answers via bd CLI.
  * PM is a PASSIVE MONITOR - it does NOT do any task work itself.
  */
-export function buildPrimePrompt(task: string, contextPath?: string, mayorPaneIndex?: string): string {
+export function buildPrimePrompt(
+  task: string,
+  contextPath?: string,
+  mayorPaneIndex?: string,
+): string {
   const paneIndex = mayorPaneIndex ?? '0';
 
   return `You are the Prime Minister (PM) - the human's DECISION PROXY for this convoy.
@@ -169,8 +182,12 @@ Mayor and other agents work on the task. You just answer their questions.
 
 ### 1. On Start (Do These Steps ONLY)
 1. Display your greeting (character art from prime.md)
-${contextPath ? `2. Read the context file at $GASTOWN_CONTEXT and load decision principles
-3. Log: "📄 Context loaded: [X] Q&As, [Y] decision principles"` : `2. No context file - will use general best practices`}
+${
+    contextPath
+      ? `2. Read the context file at $GASTOWN_CONTEXT and load decision principles
+3. Log: "📄 Context loaded: [X] Q&As, [Y] decision principles"`
+      : `2. No context file - will use general best practices`
+  }
 ${contextPath ? '4' : '3'}. **Wait for Mayor's pane to be ready** (2-3 seconds)
 ${contextPath ? '5' : '4'}. Begin the monitoring loop (step 2 below)
 
@@ -325,7 +342,7 @@ export function buildRolePrompt(
   task: string,
   checkpoint?: string,
   contextPath?: string,
-  primeMode?: boolean
+  primeMode?: boolean,
 ): string {
   // Prime role uses dedicated prompt builder
   if (role === 'prime') {
@@ -337,7 +354,10 @@ export function buildRolePrompt(
     return buildPrimeMayorPrompt(task, contextPath);
   }
 
-  const prompts: Record<RoleName, (task: string, checkpoint?: string, contextPath?: string) => string> = {
+  const prompts: Record<
+    RoleName,
+    (task: string, checkpoint?: string, contextPath?: string) => string
+  > = {
     mayor: (task, _checkpoint, contextPath) =>
       contextPath
         ? `You are the Mayor coordinating this convoy in AUTOPILOT MODE. The task is: "${task}". ` +
@@ -382,5 +402,13 @@ export function buildRolePrompt(
       buildPrimePrompt(task, contextPath),
   };
 
-  return prompts[role](task, checkpoint, contextPath);
+  const basePrompt = prompts[role](task, checkpoint, contextPath);
+
+  // Prepend skill instructions if any exist for this role
+  const skillInstructions = getRoleSkillInstructions(role);
+  if (skillInstructions) {
+    return `${skillInstructions}\n\n${basePrompt}`;
+  }
+
+  return basePrompt;
 }
