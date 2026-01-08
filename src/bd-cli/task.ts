@@ -2,6 +2,7 @@
 import { execBd, execBdJson } from './executor.ts';
 
 const TASK_LABEL = 'gt:task';
+const TASK_TYPE = 'task';
 
 export interface TaskCreateOptions {
   title: string;
@@ -27,7 +28,7 @@ interface BdShowResult {
   description: string;
   status: string;
   labels: string[];
-  depends_on?: Array<{ id: string }>;
+  dependencies?: Array<{ id: string }>;
 }
 
 export async function createTask(options: TaskCreateOptions): Promise<TaskInfo> {
@@ -38,7 +39,7 @@ export async function createTask(options: TaskCreateOptions): Promise<TaskInfo> 
   const args = [
     'create',
     options.title,
-    '--type', 'task',
+    '--type', TASK_TYPE,
     '--silent',
   ];
 
@@ -67,6 +68,11 @@ export async function createTask(options: TaskCreateOptions): Promise<TaskInfo> 
 
 export async function getTask(id: string): Promise<TaskInfo> {
   const results = await execBdJson<BdShowResult[]>(['show', id]);
+
+  if (!results || results.length === 0) {
+    throw new Error(`Task not found: ${id}`);
+  }
+
   const result = results[0];
 
   return {
@@ -75,7 +81,7 @@ export async function getTask(id: string): Promise<TaskInfo> {
     description: result.description ?? '',
     status: result.status,
     labels: result.labels ?? [],
-    deps: result.depends_on?.map((d) => d.id) ?? [],
+    deps: result.dependencies?.map((d) => d.id) ?? [],
   };
 }
 
@@ -121,7 +127,7 @@ export async function getReadyTasks(convoyId?: string): Promise<TaskInfo[]> {
       description: r.description ?? '',
       status: r.status,
       labels: r.labels ?? [],
-      deps: r.depends_on?.map((d) => d.id) ?? [],
+      deps: r.dependencies?.map((d) => d.id) ?? [],
     }));
 }
 
