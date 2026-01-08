@@ -274,6 +274,17 @@ OPTIONS:
 # Continue working - don't change state to waiting
 ```
 
+## Required Skills
+
+You MUST use these skills when applicable:
+
+| Skill | Type | When to Use |
+|-------|------|-------------|
+| `superpowers:dispatching-parallel-agents` | skill-tool | When spawning multiple independent workers |
+| `superpowers:finishing-a-development-branch` | skill-tool | When all tasks are complete and ready to merge |
+
+**Invoke via Skill tool:** `Skill tool to invoke "superpowers:<skill-name>" when applicable.`
+
 ## Your Responsibilities
 
 1. **User Interaction** - You are the ONLY role that directly communicates with the user
