@@ -1,3 +1,8 @@
+/**
+ * @deprecated These operations use the old custom bd file format.
+ * Use bd CLI commands instead via src/bd-cli/mod.ts.
+ * This module will be removed in v0.2.0.
+ */
 import type { BdFile, BdTask, TaskStatus } from '../types.ts';
 
 export function findTaskById(bd: BdFile, taskId: string): BdTask | undefined {

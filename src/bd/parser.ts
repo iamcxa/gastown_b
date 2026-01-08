@@ -1,3 +1,8 @@
+/**
+ * @deprecated This parser uses the old custom bd file format.
+ * Use bd CLI commands instead via src/bd-cli/mod.ts.
+ * This module will be removed in v0.2.0.
+ */
 import type { BdFile, BdSection, BdTask, RoleName, TaskStatus } from '../types.ts';
 
 // Status emoji constants for reliable matching
