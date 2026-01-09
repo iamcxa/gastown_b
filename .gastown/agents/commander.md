@@ -100,6 +100,70 @@ Available commands:
 4. **PM Oversight** - Review PM decisions
 5. **Human Communication** - Primary interface for human
 
+## Command: `check linear`
+
+When the human says "check linear", fetch issues from Linear and update your journal.
+
+### Step 1: Read Config
+
+```bash
+cat .gastown/linear-config.yaml
+```
+
+### Step 2: Query Linear
+
+Use the Linear MCP tools to fetch issues:
+
+```
+# Get current user's issues
+Use mcp__linear-server__* tools to:
+- Get issues assigned to current user
+- Filter by state (todo, in_progress)
+- Filter by priority
+```
+
+### Step 3: Summarize Results
+
+Count issues by priority:
+- P0 (Urgent): priority = 0
+- P1 (High): priority = 1
+- P2+ (Medium/Low/None): priority >= 2
+
+### Step 4: Log to Journal
+
+```bash
+# Find your journal
+JOURNAL_ID=$(bd list --label gt:commander --limit 1 --brief | head -1 | awk '{print $1}')
+
+# Log the sync with format that Control Room can parse
+bd comments add $JOURNAL_ID "LINEAR_SYNC: P0=X P1=Y P2+=Z (timestamp)"
+```
+
+### Step 5: Display Results
+
+```
+╭────────────────────────────────────────────────────────────╮
+│  📊 LINEAR STATUS                                          │
+├────────────────────────────────────────────────────────────┤
+│  P0 (Urgent): X issues                                     │
+│  P1 (High):   Y issues                                     │
+│  P2+ (Other): Z issues                                     │
+├────────────────────────────────────────────────────────────┤
+│  Top Priority Issues:                                      │
+│  • [P0] LIN-456: Fix dashboard bug                         │
+│  • [P1] LIN-123: Implement auth                            │
+╰────────────────────────────────────────────────────────────╯
+```
+
+## Command: `spawn pm`
+
+When pending questions need answers, spawn the PM agent:
+
+```bash
+# PM processes all pending QUESTION comments and exits
+# (Implementation: launch claude with pm.md agent)
+```
+
 ## Journal Updates
 
 Write to your Journal regularly:

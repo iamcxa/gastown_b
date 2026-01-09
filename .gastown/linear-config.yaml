@@ -1,0 +1,52 @@
+# Gas Town Linear Configuration
+# Used by Linear Scout to filter and fetch issues
+
+linear:
+  # Team filter (null = all teams you have access to)
+  team: null
+
+  # Issue filters
+  filters:
+    # Assignee filter: "me", specific username, or "unassigned"
+    assignee: "me"
+
+    # State filter: which issue states to include
+    states:
+      - triage
+      - backlog
+      - todo
+      - in_progress
+
+    # Priority filter: max priority level to include (0=Urgent to 4=None)
+    # Issues with priority <= this value will be included
+    priority_max: 2  # Include P0, P1, P2
+
+    # Label filter: only include issues with these labels (empty = no filter)
+    labels: []
+
+    # Cycle filter: "current", "next", "all", or specific cycle ID
+    cycle: "current"
+
+  # Output settings
+  output:
+    # Maximum number of issues to return
+    max_items: 20
+
+    # Sort order: "priority", "updated", "created"
+    sort_by: "priority"
+
+# Example configurations:
+#
+# For urgent issues only:
+#   priority_max: 0
+#
+# For unassigned issues:
+#   assignee: "unassigned"
+#
+# For specific team:
+#   team: "abc123-team-id"
+#
+# For issues with specific label:
+#   labels:
+#     - "gastown"
+#     - "frontend"

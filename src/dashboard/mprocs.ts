@@ -173,6 +173,37 @@ print_convoy_stats() {
   echo -e " ╚══════════════════════════════════════════════════════════════════════╝"
 }
 
+print_linear_status() {
+  echo ""
+  echo -e "\${FG} ╔══════════════════════════════════════════════════════════════════════╗"
+  echo -e " ║  \${GOLD}◈ LINEAR STATUS\${FG}                                                        ║"
+  echo -e " ╠══════════════════════════════════════════════════════════════════════╣"
+
+  # Try to read Linear status from Commander Journal
+  local journal_id=\$(bd list --label gt:commander --limit 1 --brief 2>/dev/null | head -1 | awk '{print \$1}')
+
+  if [ -n "\$journal_id" ]; then
+    # Look for LINEAR_SYNC comment with counts
+    local linear_data=\$(bd comments "\$journal_id" 2>/dev/null | grep -E "^LINEAR_SYNC:" | tail -1)
+    if [ -n "\$linear_data" ]; then
+      # Parse counts from format: LINEAR_SYNC: P0=1 P1=3 P2+=5
+      local p0=\$(echo "\$linear_data" | grep -oE "P0=[0-9]+" | cut -d= -f2)
+      local p1=\$(echo "\$linear_data" | grep -oE "P1=[0-9]+" | cut -d= -f2)
+      local p2=\$(echo "\$linear_data" | grep -oE "P2\\+=[0-9]+" | cut -d= -f2)
+      p0=\${p0:-0}
+      p1=\${p1:-0}
+      p2=\${p2:-0}
+      printf " ║  P0: \${GOLD}%-3s\${FG} │  P1: %-3s │  P2+: \${DIM}%-3s\${FG}                                 ║\\n" "\$p0" "\$p1" "\$p2"
+    else
+      echo -e " ║  \${DIM}No Linear data - run 'check linear' in Commander\${FG}                   ║"
+    fi
+  else
+    echo -e " ║  \${DIM}Commander Journal not found\${FG}                                          ║"
+  fi
+
+  echo -e " ╚══════════════════════════════════════════════════════════════════════╝"
+}
+
 print_convoy_panel() {
   echo ""
   echo -e "\${FG} ╔══════════════════════════════════════════════════════════════════════╗"
@@ -242,6 +273,7 @@ while true; do
   print_header
   print_system_panel
   print_convoy_stats
+  print_linear_status
   print_convoy_panel
   print_commander_status
   print_controls_panel
