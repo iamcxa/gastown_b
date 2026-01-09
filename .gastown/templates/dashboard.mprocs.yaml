@@ -1,0 +1,37 @@
+# Gastown Dashboard - mprocs Configuration Template
+#
+# This template shows the format used by `gastown dashboard` to create
+# an mprocs configuration for viewing all running convoys.
+#
+# mprocs is a TUI tool for running multiple processes.
+# Install it with: brew install mprocs
+#
+# When you run `gastown dashboard`, it automatically generates a config
+# like this based on your active convoys.
+#
+# Key design decisions:
+# - mprocs only "attaches" to tmux sessions - closing mprocs leaves sessions running
+# - Each convoy shows up as a separate mprocs pane
+# - A "status" pane shows overall convoy status via `gastown --status`
+
+procs:
+  # Status overview - refreshes every 2 seconds
+  status:
+    shell: "watch -n 2 -c \"gastown --status\""
+
+  # Example convoy pane - attaches to its tmux session
+  # If session doesn't exist, shows a fallback message
+  convoy-example:
+    shell: "tmux attach -t gastown-convoy-example 2>/dev/null || echo \"Session 'gastown-convoy-example' not running.\""
+
+  # Another convoy example
+  auth-feature:
+    shell: "tmux attach -t gastown-auth-feature 2>/dev/null || echo \"Session 'gastown-auth-feature' not running.\""
+
+# When no convoys are active, a placeholder is shown:
+#
+# procs:
+#   status:
+#     shell: "watch -n 2 -c \"gastown --status\""
+#   no-convoys:
+#     shell: "echo \"No active convoys. Start one with: gastown <task>\""

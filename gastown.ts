@@ -12,6 +12,7 @@
  *   gastown attach [session]       Attach to session
  *   gastown stop [--archive]       Stop convoy
  *   gastown init                   Generate config
+ *   gastown dashboard              Launch mprocs dashboard
  */
 
 import { parseArgs } from 'https://deno.land/std@0.224.0/cli/parse_args.ts';
@@ -25,6 +26,7 @@ import {
 } from './src/cli/commands.ts';
 import { spawnAgent } from './src/spawn/mod.ts';
 import { checkForReadyWork, triggerWork } from './src/gupp/mod.ts';
+import { launchDashboard } from './src/dashboard/mod.ts';
 import type { RoleName } from './src/types.ts';
 
 const VERSION = '0.1.0';
@@ -42,6 +44,7 @@ USAGE:
   gastown attach [session-name]     Attach to running convoy
   gastown stop [--archive]          Stop all convoys
   gastown init                      Initialize gastown in project
+  gastown dashboard                 Launch mprocs dashboard for all convoys
   gastown spawn <role> --task "..."   Spawn agent in current convoy
   gastown gupp check [--dry-run]    Check for ready work and trigger spawning
 
@@ -136,6 +139,11 @@ async function main(): Promise<void> {
 
   if (command === 'init') {
     await initConfig();
+    return;
+  }
+
+  if (command === 'dashboard') {
+    await launchDashboard();
     return;
   }
 
