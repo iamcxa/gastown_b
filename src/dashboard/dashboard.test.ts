@@ -15,15 +15,16 @@ Deno.test('generateMprocsConfig creates valid YAML structure', () => {
   // Should start with procs:
   assertStringIncludes(config, 'procs:');
 
-  // Should have status pane with gastown branding
-  assertStringIncludes(config, '⛽ Status');
-  assertStringIncludes(config, 'bash -c'); // Cross-platform loop instead of watch
-  assertStringIncludes(config, 'gastown --status');
+  // Should have Control Room pane with industrial branding
+  assertStringIncludes(config, '⛽ Control Room');
+  assertStringIncludes(config, 'GAS TOWN');
 
-  // Should have convoy pane with status icon (pane label is convoy ID)
-  assertStringIncludes(config, '🟢 convoy-001'); // 🟢 = running
+  // Should have convoy pane with status icon (● = running)
+  assertStringIncludes(config, '● convoy-001');
   assertStringIncludes(config, 'tmux attach -t');
   assertStringIncludes(config, 'gastown-convoy-001');
+  // Should have box-drawing frames in detail output
+  assertStringIncludes(config, '╔');
 });
 
 Deno.test('generateMprocsConfig handles multiple convoys', () => {
@@ -35,10 +36,10 @@ Deno.test('generateMprocsConfig handles multiple convoys', () => {
 
   const config = generateMprocsConfig(convoys);
 
-  // Should have all convoy panes with status icons (pane label is convoy ID)
-  assertStringIncludes(config, '🟢 conv-1'); // running
-  assertStringIncludes(config, '🟡 conv-2'); // idle
-  assertStringIncludes(config, '🔴 conv-3'); // stopped
+  // Should have all convoy panes with status icons (industrial style)
+  assertStringIncludes(config, '● conv-1'); // running (filled circle)
+  assertStringIncludes(config, '○ conv-2'); // idle (empty circle)
+  assertStringIncludes(config, '◌ conv-3'); // stopped (dotted circle)
 
   // Each should have tmux attach command
   assertStringIncludes(config, 'gastown-conv-1');
@@ -51,12 +52,13 @@ Deno.test('generateMprocsConfig handles empty convoy list', () => {
 
   const config = generateMprocsConfig(convoys);
 
-  // Should have status pane
-  assertStringIncludes(config, '⛽ Status');
+  // Should have Control Room pane
+  assertStringIncludes(config, '⛽ Control Room');
 
-  // Should have welcome placeholder
+  // Should have welcome pane with industrial frame
   assertStringIncludes(config, '📋 Welcome');
   assertStringIncludes(config, 'No active convoys');
+  assertStringIncludes(config, '╔'); // Box-drawing frame
 });
 
 Deno.test('generateMprocsConfig handles Unicode names', () => {
@@ -67,8 +69,8 @@ Deno.test('generateMprocsConfig handles Unicode names', () => {
   const config = generateMprocsConfig(convoys);
 
   // Pane label uses convoy ID (safe for all languages)
-  assertStringIncludes(config, '🟢 conv-1');
-  // Full name shown in fallback message
+  assertStringIncludes(config, '● conv-1');
+  // Full name shown in fallback message (inside box frame)
   assertStringIncludes(config, '請依據專案最佳實踐實作功能');
 });
 
@@ -83,8 +85,8 @@ Deno.test('generateMprocsConfig uses convoy ID as pane label', () => {
 
   const config = generateMprocsConfig(convoys);
 
-  // Pane label is the convoy ID directly
-  assertStringIncludes(config, '🟢 my-convoy-abc123');
+  // Pane label is the convoy ID with status icon
+  assertStringIncludes(config, '● my-convoy-abc123');
   // Session name includes gastown prefix
   assertStringIncludes(config, 'gastown-my-convoy-abc123');
 });
@@ -96,8 +98,9 @@ Deno.test('generateMprocsConfig includes convoy status in fallback message', () 
 
   const config = generateMprocsConfig(convoys);
 
-  // Fallback message should include status
-  assertStringIncludes(config, 'Status: idle');
+  // Fallback message should include status with industrial gauge
+  assertStringIncludes(config, 'IDLE');
+  assertStringIncludes(config, '▰▰▰▱▱'); // Progress bar for idle status
 });
 
 Deno.test('mapConvoyStatus returns running when tmux session exists', () => {

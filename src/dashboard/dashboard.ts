@@ -87,9 +87,8 @@ export async function launchDashboard(): Promise<void> {
     console.log(`  - ${convoy.name} (${convoy.id}): ${convoy.status}`);
   }
 
-  // Generate and write mprocs config
-  const config = generateMprocsConfig(dashboardConvoys);
-  const configPath = await writeMprocsConfig(config);
+  // Generate and write mprocs config (writeMprocsConfig handles status script too)
+  const configPath = await writeMprocsConfig(dashboardConvoys);
 
   console.log(`Starting mprocs...`);
 
