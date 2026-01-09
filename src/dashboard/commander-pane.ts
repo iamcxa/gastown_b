@@ -68,9 +68,9 @@ show_panel() {
 
 start_commander() {
   echo -e "\\n\${GOLD}▶ Starting Commander...\${RESET}"
-  # Launch Claude Code with commander role
-  # For now, just launch claude directly - commander agent will be added later
-  claude --dangerously-skip-permissions
+  # Launch Claude Code with commander agent profile
+  # Uses .claude/agents/commander.md (symlinked from .gastown/agents/)
+  GASTOWN_ROLE=commander claude --agent commander --dangerously-skip-permissions
 }
 
 # MAIN LOOP
