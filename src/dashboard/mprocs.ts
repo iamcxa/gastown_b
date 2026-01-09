@@ -543,6 +543,45 @@ export function generateMprocsConfig(
 }
 
 /**
+ * Find the commander.md agent file, checking multiple locations:
+ * 1. Project-local .gastown/agents/commander.md
+ * 2. Gastown installation directory .gastown/agents/commander.md
+ *
+ * @param gastownPath - Path to gastown binary
+ * @returns Full path to commander.md or undefined if not found
+ */
+async function findCommanderAgentFile(gastownPath: string): Promise<string | undefined> {
+  // Get gastown installation directory from binary path
+  // gastownPath is like /path/to/gastown.ts or /path/to/gastown (compiled)
+  const gastownDir = gastownPath.replace(/\/gastown(\.ts)?$/, '');
+
+  // Check project-local first (current working directory)
+  const projectDir = Deno.cwd();
+  const projectAgentPath = `${projectDir}/.gastown/agents/commander.md`;
+  try {
+    const stat = await Deno.stat(projectAgentPath);
+    if (stat.isFile) {
+      return projectAgentPath;
+    }
+  } catch {
+    // Not found in project, continue
+  }
+
+  // Fall back to gastown installation directory
+  const installAgentPath = `${gastownDir}/.gastown/agents/commander.md`;
+  try {
+    const stat = await Deno.stat(installAgentPath);
+    if (stat.isFile) {
+      return installAgentPath;
+    }
+  } catch {
+    // Not found
+  }
+
+  return undefined;
+}
+
+/**
  * Write mprocs configuration and supporting scripts to temp directory.
  *
  * @param convoys - List of convoy info objects
@@ -557,10 +596,18 @@ export async function writeMprocsConfig(convoys: DashboardConvoyInfo[], gastownP
   await Deno.writeTextFile(statusScriptPath, generateStatusScriptContent());
   await Deno.chmod(statusScriptPath, 0o755);
 
-  // Write Commander pane script
+  // Find and copy commander.md agent file to temp directory
+  const sourceAgentPath = await findCommanderAgentFile(gastownPath);
+  let commanderAgentPath: string | undefined;
+  if (sourceAgentPath) {
+    commanderAgentPath = `${tempDir}/commander.md`;
+    await Deno.copyFile(sourceAgentPath, commanderAgentPath);
+  }
+
+  // Write Commander pane script with full path to agent file
   const commanderScriptPath = `${tempDir}/commander.sh`;
   const { generateCommanderScriptContent } = await import("./commander-pane.ts");
-  await Deno.writeTextFile(commanderScriptPath, generateCommanderScriptContent(gastownPath));
+  await Deno.writeTextFile(commanderScriptPath, generateCommanderScriptContent(gastownPath, commanderAgentPath));
   await Deno.chmod(commanderScriptPath, 0o755);
 
   // Write convoy detail scripts
