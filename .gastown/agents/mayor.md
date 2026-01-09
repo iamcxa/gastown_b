@@ -240,15 +240,29 @@ bd agent state $GASTOWN_BD waiting
 
 ### Waiting for Answers
 
-Poll comments for PM's answer:
+**PM is event-driven** - it's spawned on-demand to answer questions, then exits.
+After writing a QUESTION, poll for the answer with reasonable patience:
 
 ```bash
-# List all comments
-bd comments $GASTOWN_BD
+# Poll for answer (simple loop)
+for i in {1..30}; do
+  ANSWER=$(bd comments $GASTOWN_BD | grep -A5 "^ANSWER")
+  if [ -n "$ANSWER" ]; then
+    echo "Got answer: $ANSWER"
+    break
+  fi
+  echo "Waiting for PM answer... ($i/30)"
+  sleep 2
+done
 
 # Or get JSON for parsing
-bd show $GASTOWN_BD --json
+bd show $GASTOWN_BD --json | jq '.comments[] | select(startswith("ANSWER"))'
 ```
+
+**If no answer after reasonable wait (60s):**
+- Check if PM has been spawned (Commander may need to spawn it)
+- Log: "⏳ Still waiting for PM answer..."
+- Continue with non-blocking work if possible
 
 **Answer format (from PM as comment):**
 ```
@@ -259,6 +273,8 @@ ANSWER [confidence]: [PM's answer to your question]
 - `high` - PM is confident, proceed without hesitation
 - `medium` - PM's best guess, proceed but be ready to adjust
 - `low` - Uncertain, consider asking follow-up if critical
+- `human` - Human provided the answer directly
+- `escalated` - PM couldn't answer, needs human input
 
 ### Non-Blocking Questions
 
