@@ -169,10 +169,10 @@ print_convoy_panel() {
 print_controls_panel() {
   echo ""
   echo -e "\${FG} ╔══════════════════════════════════════════════════════════════════════╗"
-  echo -e " ║  \${GOLD}◆ CONTROL INTERFACE\${FG}                                                 ║"
+  echo -e " ║  \${GOLD}◆ MPROCS CONTROLS\${FG}                                                    ║"
   echo -e " ╠════════════════════╦════════════════════╦════════════════════════════╣"
-  echo -e " ║  [j/k] Navigate    ║  [r] Restart Proc  ║  [q] Exit Dashboard        ║"
-  echo -e " ║  [↑/↓] Scroll      ║  [x] Stop Process  ║  [z] Zoom Terminal         ║"
+  echo -e " ║  [C-a] Focus List  ║  [r] Restart Proc  ║  [q] Exit Dashboard        ║"
+  echo -e " ║  [j/k] Navigate    ║  [x] Stop Process  ║  [z] Zoom Terminal         ║"
   echo -e " ╚════════════════════╩════════════════════╩════════════════════════════╝"
   echo ""
   echo -e "\${DIM} ○──────────────────────────────────────────────────────────────────────○"
@@ -200,8 +200,9 @@ done
  * Generate convoy detail display script content (written to file).
  * Uses ANSI colors: Dark olive/green military theme.
  * Provides interactive options:
- * - [s] Start/resume the convoy via gastown
- * - [r] Retry tmux attach (mprocs built-in)
+ * - [s] Open new terminal window and attach to convoy (via osascript on macOS)
+ * - [C-a] Focus process list (mprocs built-in)
+ * - [q] Exit dashboard (mprocs built-in)
  */
 function generateConvoyScriptContent(convoyId: string, convoyName: string, status: ConvoyStatus): string {
   // Status visualization
@@ -280,12 +281,12 @@ print_details_panel() {
   echo " ╠════════════════════════════════════════════════════════════════╣"
   echo " ║                                                                ║"
   echo " ║   ┌──────────────────────────────────────────────────────┐     ║"
-  echo -e " ║   │  \${AMBER}[s]\${FG} START / RESUME this convoy                     │     ║"
-  echo -e " ║   │  \${AMBER}[r]\${FG} RETRY tmux attach (mprocs reload)              │     ║"
-  echo -e " ║   │  \${AMBER}[q]\${FG} BACK to process list                          │     ║"
+  echo -e " ║   │  \${AMBER}[s]\${FG} OPEN new terminal & attach convoy          │     ║"
+  echo -e " ║   │  \${AMBER}[C-a]\${FG} Focus process list (mprocs key)         │     ║"
+  echo -e " ║   │  \${AMBER}[q]\${FG} EXIT dashboard (quit mprocs)            │     ║"
   echo " ║   └──────────────────────────────────────────────────────┘     ║"
   echo " ║                                                                ║"
-  echo -e " ║   \${AMBER}⚠\${FG}  SESSION NOT ATTACHED - Waiting for input...              ║"
+  echo -e " ║   \${AMBER}⚠\${FG}  Press [s] to open convoy in new terminal            ║"
   echo " ║                                                                ║"
   echo -e " ╚════════════════════════════════════════════════════════════════╝\${RESET}"
 }
@@ -304,18 +305,28 @@ while true; do
 
   case "\$key" in
     s|S)
-      echo -e "\\n \${AMBER}▶ Starting convoy ${convoyId}...\${RESET}"
+      echo -e "\\n \${AMBER}▶ Opening convoy in new terminal...\${RESET}"
+      # First ensure the convoy is started
       gastown --resume ${convoyId} 2>/dev/null
-      tmux attach -t gastown-${convoyId} 2>/dev/null && exit 0
-      ;;
-    a|A)
-      echo -e "\\n \${AMBER}▶ Starting convoy ${convoyId}...\${RESET}"
-      gastown --resume ${convoyId} 2>/dev/null
-      tmux attach -t gastown-${convoyId} 2>/dev/null && exit 0
+      # Open new Terminal window with tmux attach (macOS)
+      if [[ "\$(uname)" == "Darwin" ]]; then
+        osascript -e "tell application \\"Terminal\\" to do script \\"tmux attach -t gastown-${convoyId} || echo 'Session not found. Run: gastown --resume ${convoyId}'; read\\""
+        osascript -e "tell application \\"Terminal\\" to activate"
+        echo -e " \${FG}✓ New terminal window opened\${RESET}"
+      else
+        # Linux fallback - try common terminal emulators
+        if command -v gnome-terminal &>/dev/null; then
+          gnome-terminal -- tmux attach -t gastown-${convoyId}
+        elif command -v xterm &>/dev/null; then
+          xterm -e "tmux attach -t gastown-${convoyId}" &
+        else
+          echo -e " \${AMBER}⚠ Please run manually: tmux attach -t gastown-${convoyId}\${RESET}"
+        fi
+      fi
+      sleep 2
       ;;
     *)
-      # Try to attach (maybe session started externally)
-      tmux attach -t gastown-${convoyId} 2>/dev/null && exit 0
+      # Other keys - just continue the loop (no auto-attach attempt)
       ;;
   esac
 done
@@ -408,6 +419,10 @@ export function generateMprocsConfig(
   lines.push('proc_list_width: 24');
   lines.push('scrollback: 5000');
   lines.push('mouse_scroll_speed: 3');
+  lines.push('hide_keymap_window: true');  // More space for industrial aesthetic
+  lines.push('');
+  lines.push('# Remote control server for automation');
+  lines.push('server: "127.0.0.1:4050"');
   lines.push('');
 
   // Process definitions
@@ -451,7 +466,7 @@ export function generateMprocsConfig(
         lines.push(`    shell: "tmux attach -t ${sessionName} 2>/dev/null || bash ${scriptPath}"`);
       } else {
         // Simple fallback without colors
-        lines.push(`    shell: "tmux attach -t ${sessionName} 2>/dev/null || bash -c 'while true; do clear; echo \\"Convoy: ${convoy.id}\\"; echo \\"Status: ${convoy.status}\\"; echo; echo \\"Press [s] to start, [r] to retry...\\"; read -t 1 -n 1 key; case \\"\$key\\" in s|S) gastown --resume ${convoy.id} ;; esac; done'"`);
+        lines.push(`    shell: "tmux attach -t ${sessionName} 2>/dev/null || bash -c 'while true; do clear; echo \\"Convoy: ${convoy.id}\\"; echo \\"Status: ${convoy.status}\\"; echo; echo \\"Press [s] to start, [C-a] to retry...\\"; read -t 1 -n 1 key; case \\"\$key\\" in s|S) gastown --resume ${convoy.id} ;; esac; done'"`);
       }
     }
   } else {
