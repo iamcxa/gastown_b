@@ -14,12 +14,13 @@
  * - Auto-restarts on exit (mprocs autorestart)
  *
  * @param gastownPath - Full path to gastown binary
- * @param agentFilePath - Full path to commander.md agent file (optional, will try to find it)
+ * @param agentFilePath - Full path to commander agent file (.claude/agents/commander.md)
+ * @param projectRoot - Project root directory (for loading .claude/commands/)
  * @returns Bash script content
  */
-export function generateCommanderScriptContent(gastownPath: string, agentFilePath?: string): string {
-  // If agentFilePath is provided, use it; otherwise the script will need to handle it
+export function generateCommanderScriptContent(gastownPath: string, agentFilePath?: string, projectRoot?: string): string {
   const agentFileVar = agentFilePath ? `AGENT_FILE="${agentFilePath}"` : `AGENT_FILE=""`;
+  const projectRootVar = projectRoot ? `PROJECT_ROOT="${projectRoot}"` : `PROJECT_ROOT="$(pwd)"`;
 
   return `#!/bin/bash
 # GAS TOWN - Commander Pane
@@ -27,6 +28,7 @@ export function generateCommanderScriptContent(gastownPath: string, agentFilePat
 
 GASTOWN_BIN="${gastownPath}"
 ${agentFileVar}
+${projectRootVar}
 
 # Colors (Purple/Magenta theme for Commander)
 BG="\\033[48;5;53m"
@@ -73,10 +75,18 @@ show_panel() {
 
 start_commander() {
   echo -e "\\n\${GOLD}▶ Starting Commander...\${RESET}"
-  # Launch Claude Code with commander agent profile
-  # Uses full path to commander.md agent file
+  # Change to project root so .claude/commands/ is loaded
+  cd "\$PROJECT_ROOT" || exit 1
+  echo -e "\${DIM}Working directory: \$PROJECT_ROOT\${RESET}"
+  # Launch Claude Code with commander agent file
+  # Uses --agent to load the full agent profile with YAML frontmatter
+  # Agent file includes allowed_tools so no need for --allowedTools
   if [ -n "\$AGENT_FILE" ] && [ -f "\$AGENT_FILE" ]; then
-    GASTOWN_ROLE=commander claude --agent "\$AGENT_FILE" --dangerously-skip-permissions
+    echo -e "\${DIM}Loading commander agent: \$AGENT_FILE\${RESET}"
+    GASTOWN_ROLE=commander claude \\
+      --agent "\$AGENT_FILE" \\
+      --dangerously-skip-permissions \\
+      "Start as Commander - display your character greeting and load your journal"
   else
     echo -e "\${GOLD}⚠ Agent file not found: \$AGENT_FILE\${RESET}"
     echo -e "\${DIM}Falling back to default Claude...\${RESET}"

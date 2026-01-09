@@ -9,6 +9,7 @@ allowed_tools:
   - Glob
   - LS
   - Task
+  - Skill
   - TodoWrite
   - WebFetch
   - WebSearch

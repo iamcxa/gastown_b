@@ -1,5 +1,7 @@
 // src/dashboard/mprocs.ts
 
+import { buildCommanderCommands, buildCommanderAgentFile } from "../claude/command.ts";
+
 /**
  * mprocs configuration generator for Gastown dashboard.
  * Generates YAML configuration for mprocs TUI to manage convoy sessions.
@@ -409,6 +411,132 @@ done
 }
 
 /**
+ * Generate PM (Prime Minister) pane script for a convoy.
+ * PM monitors for QUESTION comments and answers them from context.
+ *
+ * @param convoyId - Convoy ID to monitor
+ * @param gastownPath - Full path to gastown binary
+ */
+function generatePMScriptContent(convoyId: string, gastownPath: string): string {
+  const safeId = convoyId.substring(0, 20);
+
+  return `#!/bin/bash
+# GAS TOWN - PM (Prime Minister) Pane
+# Monitors for QUESTION comments and spawns PM to answer them
+CONVOY_ID="${safeId}"
+
+# Colors
+BG="\\033[48;5;54m"      # Purple background for PM
+FG="\\033[38;5;219m"     # Light pink foreground
+AMBER="\\033[38;5;214m"
+CYAN="\\033[38;5;51m"
+DIM="\\033[38;5;242m"
+RESET="\\033[0m"
+
+SPIN=('◐' '◓' '◑' '◒')
+FRAME=0
+
+check_pending_questions() {
+  # Get all comments from bd
+  local comments=\$(bd comments "\$CONVOY_ID" 2>/dev/null || echo "")
+
+  # Count QUESTION and ANSWER entries
+  local q_count=\$(echo "\$comments" | grep -c "QUESTION \\[" 2>/dev/null || echo 0)
+  local a_count=\$(echo "\$comments" | grep -c "ANSWER \\[" 2>/dev/null || echo 0)
+
+  # Return difference (pending questions)
+  echo \$((q_count - a_count))
+}
+
+get_latest_question() {
+  bd comments "\$CONVOY_ID" 2>/dev/null | grep "QUESTION \\[" | tail -1 | head -c 60
+}
+
+show_status_panel() {
+  local spin=\${SPIN[\$FRAME]}
+  FRAME=\$(( (FRAME + 1) % 4 ))
+  local pending=\$(check_pending_questions)
+  local latest_q=\$(get_latest_question)
+
+  echo -ne "\${BG}"
+  clear
+  echo -e "\${AMBER}"
+  echo "       🎩 PRIME MINISTER"
+  echo -e "\${FG}"
+  echo " ╔══════════════════════════════════════════════════════════════╗"
+  echo -e " ║  \${AMBER}\$spin PM Monitor\${FG} - Convoy: \$CONVOY_ID"
+  echo " ╠══════════════════════════════════════════════════════════════╣"
+
+  if [[ \$pending -gt 0 ]]; then
+    echo -e " ║  \${CYAN}◉ \$pending pending question(s)\${FG}"
+    echo -e " ║  \${DIM}Latest: \${latest_q}...\${FG}"
+    echo " ╠══════════════════════════════════════════════════════════════╣"
+    echo -e " ║  \${AMBER}[p]\${FG} Process questions (spawn PM)                          ║"
+  else
+    echo -e " ║  \${FG}○ No pending questions\${FG}"
+    echo " ╠══════════════════════════════════════════════════════════════╣"
+    echo -e " ║  \${DIM}Monitoring for QUESTION comments...\${FG}                       ║"
+  fi
+
+  echo -e " ╠══════════════════════════════════════════════════════════════╣"
+  echo -e " ║  \${AMBER}[a]\${FG} Auto-mode (spawn PM automatically when questions arrive) ║"
+  echo -e " ║  \${DIM}[C-a] Focus process list  [q] Exit\${FG}                         ║"
+  echo -e " ╚══════════════════════════════════════════════════════════════╝\${RESET}"
+}
+
+spawn_pm() {
+  echo -e "\\n\${AMBER}🎩 Spawning Prime Minister...\${RESET}"
+  # Set environment for spawn
+  export GASTOWN_BD="\$CONVOY_ID"
+  export GASTOWN_CONVOY="\$CONVOY_ID"
+
+  # Run PM inline (not in background) so we see output
+  "${gastownPath}" spawn prime --convoy "\$CONVOY_ID" 2>&1
+
+  echo -e "\${FG}✓ PM completed\${RESET}"
+  sleep 2
+}
+
+auto_mode() {
+  echo -e "\\n\${CYAN}◉ Auto-mode enabled - will spawn PM when questions detected\${RESET}"
+  while true; do
+    local pending=\$(check_pending_questions)
+    if [[ \$pending -gt 0 ]]; then
+      spawn_pm
+    fi
+    show_status_panel
+    # Check for 'q' to exit auto-mode
+    read -t 2 -n 1 key 2>/dev/null || key=""
+    if [[ "\$key" == "q" || "\$key" == "Q" ]]; then
+      echo -e "\\n\${FG}◇ Auto-mode disabled\${RESET}"
+      sleep 1
+      break
+    fi
+  done
+}
+
+# MAIN LOOP
+while true; do
+  show_status_panel
+
+  read -t 2 -n 1 key 2>/dev/null || key=""
+  case "\$key" in
+    p|P)
+      pending=\$(check_pending_questions)
+      if [[ \$pending -gt 0 ]]; then
+        spawn_pm
+      else
+        echo -e "\\n\${DIM}No pending questions\${RESET}"
+        sleep 1
+      fi
+      ;;
+    a|A) auto_mode ;;
+  esac
+done
+`;
+}
+
+/**
  * Generate welcome message for empty dashboard with industrial aesthetic.
  */
 function generateWelcomeScript(): string {
@@ -472,6 +600,7 @@ export function generateMprocsConfig(
   statusScriptPath?: string,
   convoyScriptPaths?: Map<string, string>,
   commanderScriptPath?: string,
+  pmScriptPaths?: Map<string, string>,
 ): string {
   const lines: string[] = [];
 
@@ -535,11 +664,11 @@ export function generateMprocsConfig(
   }
   lines.push('    autorestart: true');
 
-  // Add convoy processes
+  // Add convoy processes (paired with PM panes)
   if (convoys.length > 0) {
     lines.push('');
     lines.push('  # ═══════════════════════════════════════════════════════════════════════════');
-    lines.push('  # CONVOY PROCESSES - Active Agent Sessions');
+    lines.push('  # CONVOY + PM PAIRS - Agent Sessions with Decision Proxies');
     lines.push('  # ═══════════════════════════════════════════════════════════════════════════');
 
     for (const convoy of convoys) {
@@ -547,6 +676,7 @@ export function generateMprocsConfig(
       const statusGlyph = convoy.status === 'running' ? '▶' : convoy.status === 'idle' ? '◇' : '■';
       const paneLabel = convoy.id.substring(0, 18);
 
+      // Convoy pane
       lines.push('');
       lines.push(`  "${statusGlyph} ${paneLabel}":`);
 
@@ -557,6 +687,16 @@ export function generateMprocsConfig(
       } else {
         // Simple fallback without colors
         lines.push(`    shell: "tmux attach -t ${sessionName} 2>/dev/null || bash -c 'while true; do clear; echo \\"Convoy: ${convoy.id}\\"; echo \\"Status: ${convoy.status}\\"; echo; echo \\"Press [s] to start, [C-a] to retry...\\"; read -t 1 -n 1 key; case \\"\$key\\" in s|S) gastown --resume ${convoy.id} ;; esac; done'"`);
+      }
+
+      // PM pane (paired with convoy)
+      const pmScriptPath = pmScriptPaths?.get(convoy.id);
+      if (pmScriptPath) {
+        const pmLabel = convoy.id.substring(0, 14);
+        lines.push('');
+        lines.push(`  "🎩 PM ${pmLabel}":`);
+        lines.push(`    shell: "bash ${pmScriptPath}"`);
+        lines.push('    autorestart: true');
       }
     }
   } else {
@@ -574,43 +714,58 @@ export function generateMprocsConfig(
   return lines.join('\n') + '\n';
 }
 
+
 /**
- * Find the commander.md agent file, checking multiple locations:
- * 1. Project-local .gastown/agents/commander.md
- * 2. Gastown installation directory .gastown/agents/commander.md
+ * Write Commander slash commands to .claude/commands/ directory.
+ * Overwrites existing commands to ensure latest version is always used.
  *
- * @param gastownPath - Path to gastown binary
- * @returns Full path to commander.md or undefined if not found
+ * @param projectRoot - Project root directory (where .claude/ is)
  */
-async function findCommanderAgentFile(gastownPath: string): Promise<string | undefined> {
-  // Get gastown installation directory from binary path
-  // gastownPath is like /path/to/gastown.ts or /path/to/gastown (compiled)
-  const gastownDir = gastownPath.replace(/\/gastown(\.ts)?$/, '');
+export async function writeCommanderCommands(projectRoot: string): Promise<void> {
+  const commandsDir = `${projectRoot}/.claude/commands`;
 
-  // Check project-local first (current working directory)
-  const projectDir = Deno.cwd();
-  const projectAgentPath = `${projectDir}/.gastown/agents/commander.md`;
+  // Ensure directory exists
   try {
-    const stat = await Deno.stat(projectAgentPath);
-    if (stat.isFile) {
-      return projectAgentPath;
+    await Deno.mkdir(commandsDir, { recursive: true });
+  } catch (error) {
+    if (!(error instanceof Deno.errors.AlreadyExists)) {
+      throw error;
     }
-  } catch {
-    // Not found in project, continue
   }
 
-  // Fall back to gastown installation directory
-  const installAgentPath = `${gastownDir}/.gastown/agents/commander.md`;
+  // Get command definitions and write each one
+  const commands = buildCommanderCommands();
+  for (const cmd of commands) {
+    const filePath = `${commandsDir}/${cmd.name}.md`;
+    await Deno.writeTextFile(filePath, cmd.content);
+  }
+}
+
+/**
+ * Write Commander agent file to .claude/agents/ directory.
+ * Overwrites existing agent to ensure latest version is always used.
+ *
+ * @param projectRoot - Project root directory (where .claude/ is)
+ * @returns Path to the agent file
+ */
+export async function writeCommanderAgent(projectRoot: string): Promise<string> {
+  const agentsDir = `${projectRoot}/.claude/agents`;
+
+  // Ensure directory exists
   try {
-    const stat = await Deno.stat(installAgentPath);
-    if (stat.isFile) {
-      return installAgentPath;
+    await Deno.mkdir(agentsDir, { recursive: true });
+  } catch (error) {
+    if (!(error instanceof Deno.errors.AlreadyExists)) {
+      throw error;
     }
-  } catch {
-    // Not found
   }
 
-  return undefined;
+  // Write agent file
+  const agentPath = `${agentsDir}/commander.md`;
+  const agentContent = buildCommanderAgentFile();
+  await Deno.writeTextFile(agentPath, agentContent);
+
+  return agentPath;
 }
 
 /**
@@ -618,9 +773,16 @@ async function findCommanderAgentFile(gastownPath: string): Promise<string | und
  *
  * @param convoys - List of convoy info objects
  * @param gastownPath - Full path to gastown binary
+ * @param projectRoot - Optional project root for writing commands (defaults to cwd)
  * @returns Path to the created config file
  */
-export async function writeMprocsConfig(convoys: DashboardConvoyInfo[], gastownPath: string): Promise<string> {
+export async function writeMprocsConfig(convoys: DashboardConvoyInfo[], gastownPath: string, projectRoot?: string): Promise<string> {
+  // Write Commander config to project .claude/ directory
+  // Always overwrite to ensure latest version
+  const root = projectRoot ?? Deno.cwd();
+  await writeCommanderCommands(root);
+  const commanderAgentPath = await writeCommanderAgent(root);
+
   const tempDir = await Deno.makeTempDir({ prefix: 'gastown-dashboard-' });
 
   // Write the Control Room status script
@@ -628,18 +790,10 @@ export async function writeMprocsConfig(convoys: DashboardConvoyInfo[], gastownP
   await Deno.writeTextFile(statusScriptPath, generateStatusScriptContent());
   await Deno.chmod(statusScriptPath, 0o755);
 
-  // Find and copy commander.md agent file to temp directory
-  const sourceAgentPath = await findCommanderAgentFile(gastownPath);
-  let commanderAgentPath: string | undefined;
-  if (sourceAgentPath) {
-    commanderAgentPath = `${tempDir}/commander.md`;
-    await Deno.copyFile(sourceAgentPath, commanderAgentPath);
-  }
-
-  // Write Commander pane script with full path to agent file
+  // Write Commander pane script with agent path and project root
   const commanderScriptPath = `${tempDir}/commander.sh`;
   const { generateCommanderScriptContent } = await import("./commander-pane.ts");
-  await Deno.writeTextFile(commanderScriptPath, generateCommanderScriptContent(gastownPath, commanderAgentPath));
+  await Deno.writeTextFile(commanderScriptPath, generateCommanderScriptContent(gastownPath, commanderAgentPath, root));
   await Deno.chmod(commanderScriptPath, 0o755);
 
   // Write convoy detail scripts
@@ -652,8 +806,18 @@ export async function writeMprocsConfig(convoys: DashboardConvoyInfo[], gastownP
     convoyScriptPaths.set(convoy.id, scriptPath);
   }
 
+  // Write PM (Prime Minister) pane scripts for each convoy
+  const pmScriptPaths = new Map<string, string>();
+  for (const convoy of convoys) {
+    const scriptPath = `${tempDir}/pm-${convoy.id}.sh`;
+    const scriptContent = generatePMScriptContent(convoy.id, gastownPath);
+    await Deno.writeTextFile(scriptPath, scriptContent);
+    await Deno.chmod(scriptPath, 0o755);
+    pmScriptPaths.set(convoy.id, scriptPath);
+  }
+
   // Generate and write the mprocs config
-  const config = generateMprocsConfig(convoys, statusScriptPath, convoyScriptPaths, commanderScriptPath);
+  const config = generateMprocsConfig(convoys, statusScriptPath, convoyScriptPaths, commanderScriptPath, pmScriptPaths);
   const configPath = `${tempDir}/mprocs.yaml`;
   await Deno.writeTextFile(configPath, config);
 

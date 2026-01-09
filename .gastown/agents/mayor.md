@@ -8,6 +8,7 @@ allowed_tools:
   - Glob
   - LS
   - Task
+  - Skill
   - AskUserQuestion
   - WebFetch
   - WebSearch

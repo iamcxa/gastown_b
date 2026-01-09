@@ -7,6 +7,7 @@ allowed_tools:
   - Grep
   - Glob
   - LS
+  - Skill
   - TodoWrite
   - mcp__beads__*
   # BLOCKED: Edit, Write, Task, AskUserQuestion

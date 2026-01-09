@@ -27,6 +27,7 @@ import {
 import { spawnAgent } from './src/spawn/mod.ts';
 import { checkForReadyWork, triggerWork } from './src/gupp/mod.ts';
 import { launchDashboard } from './src/dashboard/mod.ts';
+import { buildCommanderAgentFile } from './src/claude/command.ts';
 import type { RoleName } from './src/types.ts';
 
 const VERSION = '0.1.0';
@@ -45,6 +46,7 @@ USAGE:
   gastown stop [--archive]          Stop all convoys
   gastown init                      Initialize gastown in project
   gastown dashboard                 Launch mprocs dashboard for all convoys
+  gastown commander                 Launch Commander directly (for testing)
   gastown spawn <role> --task "..."   Spawn agent in current convoy
   gastown gupp check [--dry-run]    Check for ready work and trigger spawning
 
@@ -147,9 +149,58 @@ async function main(): Promise<void> {
     return;
   }
 
+  if (command === 'commander') {
+    // Launch Commander directly for testing
+    console.log('Launching Commander...');
+
+    // Write agent file to .claude/agents/ (same location as dashboard)
+    const projectRoot = Deno.cwd();
+    const agentsDir = `${projectRoot}/.claude/agents`;
+
+    // Ensure directory exists
+    try {
+      await Deno.mkdir(agentsDir, { recursive: true });
+    } catch (error) {
+      if (!(error instanceof Deno.errors.AlreadyExists)) {
+        throw error;
+      }
+    }
+
+    // Write agent file
+    const agentPath = `${agentsDir}/commander.md`;
+    const agentContent = buildCommanderAgentFile();
+    await Deno.writeTextFile(agentPath, agentContent);
+    console.log(`Agent file written to: ${agentPath}`);
+
+    // Get absolute path to gastown binary
+    const gastownBin = new URL(import.meta.url).pathname;
+
+    // Build and run claude command
+    const cmd = new Deno.Command('claude', {
+      args: [
+        '--agent', agentPath,
+        '--dangerously-skip-permissions',
+        'Start as Commander - display your character greeting and load your journal',
+      ],
+      env: {
+        ...Deno.env.toObject(),
+        GASTOWN_ROLE: 'commander',
+        GASTOWN_BIN: gastownBin,
+      },
+      stdin: 'inherit',
+      stdout: 'inherit',
+      stderr: 'inherit',
+    });
+
+    const process = cmd.spawn();
+    const status = await process.status;
+
+    Deno.exit(status.code);
+  }
+
   if (command === 'spawn') {
     const role = rest[0]?.toString();
-    const validRoles = ['planner', 'foreman', 'polecat', 'witness', 'dog', 'refinery'];
+    const validRoles = ['planner', 'foreman', 'polecat', 'witness', 'dog', 'refinery', 'prime', 'pm'];
 
     if (!role || !validRoles.includes(role)) {
       console.error(`Usage: gastown spawn <role> --task "<description>"`);
@@ -157,15 +208,20 @@ async function main(): Promise<void> {
       Deno.exit(1);
     }
 
-    if (!args.task) {
+    // PM/Prime role doesn't require --task (it processes existing questions)
+    const isPmRole = role === 'prime' || role === 'pm';
+    if (!args.task && !isPmRole) {
       console.error('Error: --task is required for spawn command');
       console.error('Usage: gastown spawn <role> --task "<description>"');
       Deno.exit(1);
     }
 
+    // Normalize 'pm' to 'prime' (agent file is prime.md)
+    const normalizedRole = role === 'pm' ? 'prime' : role;
+
     try {
       const result = await spawnAgent({
-        role: role as RoleName,
+        role: normalizedRole as RoleName,
         task: args.task,
         convoyId: args.convoy,
         convoyName: args['convoy-name'],
