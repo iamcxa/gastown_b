@@ -30,6 +30,9 @@ All persistent state is managed through bd CLI commands:
 # Start with Prime Minister mode (autonomous)
 ./gastown --prime "Implement user authentication"
 
+# Launch the Dashboard (Control Room + Commander)
+./gastown dashboard
+
 # Resume a convoy
 ./gastown --resume gastown_b-abc123
 
@@ -37,19 +40,63 @@ All persistent state is managed through bd CLI commands:
 ./gastown --status
 ```
 
+## Dashboard Mode
+
+The dashboard provides a visual control center using mprocs:
+
+```
+┌──────────────┬──────────────┬────────────────────────────┐
+│ ◈ CONTROL    │ 💬 COMMANDER │ ▶ convoy-abc │ ▶ convoy-xyz│
+│   ROOM       │   (interact) │              │             │
+└──────────────┴──────────────┴────────────────────────────┘
+```
+
+**Control Room** - Status display showing:
+- System runtime
+- Convoy stats (Active/Idle/Total)
+- Linear status (P0/P1/P2+ counts)
+- Commander status
+
+**Commander** - Interactive pane for:
+- Starting new convoys (`start "task"`)
+- Checking Linear issues (`check linear`)
+- Spawning PM to answer questions
+- Setting goals
+
+Launch with:
+```bash
+./gastown dashboard
+# or
+./gastown -d
+```
+
 ## Agent Roles
 
 ```
-User <-> Mayor (coordinator)
-         |-- Planner (brainstorming -> design)
-         |-- Foreman (design -> tasks)
-         +-- Workers
-              |-- Polecat (implementation)
-              |-- Witness (code review)
-              |-- Dog (testing)
-              +-- Refinery (quality)
-         +-- Prime (autonomous decision-making)
+User <-> Commander (strategic control, dashboard interface)
+         |
+         +-> Mayor (convoy coordinator)
+              |-- Planner (brainstorming -> design)
+              |-- Foreman (design -> tasks)
+              +-- Workers
+                   |-- Polecat (implementation)
+                   |-- Witness (code review)
+                   |-- Dog (testing)
+                   +-- Refinery (quality)
+
+Support Agents (spawned on-demand):
+  |-- PM (answers Mayor's questions, event-driven)
+  |-- Linear Scout (fetches Linear issues)
+  +-- Prime (continuous monitoring, legacy mode)
 ```
+
+| Agent | Purpose | Mode |
+|-------|---------|------|
+| Commander | Human interface, strategic control | Dashboard |
+| Mayor | Convoy coordination | Per-convoy |
+| PM | Answer questions from context | On-demand |
+| Linear Scout | Fetch Linear issues | On-demand |
+| Prime | Autonomous supervision | Legacy (--prime) |
 
 ## Features
 

@@ -50,6 +50,7 @@ src/
 ├── cli/           # gastown CLI commands (startConvoyWithBd, resumeConvoyWithBd, etc.)
 ├── bd-cli/        # bd CLI wrapper functions (convoy, agent, task, slot operations)
 ├── claude/        # Claude Code launcher (command building, prompts, role configs)
+├── dashboard/     # mprocs dashboard (Control Room, Commander pane)
 ├── tmux/          # tmux session operations
 ├── respawn/       # Context exhaustion detection and worker respawn
 ├── bd/            # DEPRECATED: Old .bd file parser/writer (use bd-cli instead)
@@ -61,6 +62,7 @@ src/
 
 | Role | Purpose |
 |------|---------|
+| commander | Strategic control, human interface (dashboard) |
 | mayor | Convoy coordinator, user interaction |
 | planner | Design via brainstorming |
 | foreman | Task breakdown from designs |
@@ -68,9 +70,18 @@ src/
 | witness | Code review |
 | dog | Testing |
 | refinery | Code quality |
+| pm | Event-driven question answering (process & exit) |
+| linear-scout | Fetch Linear issues (process & exit) |
 | prime | Autonomous decision-making (Prime Minister mode) |
 
 Agent definitions are in `.gastown/agents/*.md`.
+
+### Dashboard Mode
+
+Launch with `gastown dashboard` or `gastown -d`:
+- **Control Room** - Status display (convoys, Linear, Commander status)
+- **Commander pane** - Interactive human interface
+- **Convoy panes** - Direct access to convoy sessions
 
 ### State Management
 
