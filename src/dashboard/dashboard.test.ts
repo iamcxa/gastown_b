@@ -15,13 +15,13 @@ Deno.test('generateMprocsConfig creates valid YAML structure', () => {
   // Should start with procs:
   assertStringIncludes(config, 'procs:');
 
-  // Should have status pane
-  assertStringIncludes(config, 'status:');
-  assertStringIncludes(config, 'watch -n 2');
+  // Should have status pane with gastown branding
+  assertStringIncludes(config, '⛽ Status');
+  assertStringIncludes(config, 'bash -c'); // Cross-platform loop instead of watch
   assertStringIncludes(config, 'gastown --status');
 
-  // Should have convoy pane
-  assertStringIncludes(config, 'Test-Convoy:');
+  // Should have convoy pane with status icon
+  assertStringIncludes(config, '🟢 Test-Convoy'); // 🟢 = running
   assertStringIncludes(config, 'tmux attach -t');
   assertStringIncludes(config, 'gastown-convoy-001');
 });
@@ -35,10 +35,10 @@ Deno.test('generateMprocsConfig handles multiple convoys', () => {
 
   const config = generateMprocsConfig(convoys);
 
-  // Should have all convoy panes
-  assertStringIncludes(config, 'First:');
-  assertStringIncludes(config, 'Second:');
-  assertStringIncludes(config, 'Third:');
+  // Should have all convoy panes with status icons
+  assertStringIncludes(config, '🟢 First'); // running
+  assertStringIncludes(config, '🟡 Second'); // idle
+  assertStringIncludes(config, '🔴 Third'); // stopped
 
   // Each should have tmux attach command
   assertStringIncludes(config, 'gastown-conv-1');
@@ -52,10 +52,10 @@ Deno.test('generateMprocsConfig handles empty convoy list', () => {
   const config = generateMprocsConfig(convoys);
 
   // Should have status pane
-  assertStringIncludes(config, 'status:');
+  assertStringIncludes(config, '⛽ Status');
 
-  // Should have no-convoys placeholder
-  assertStringIncludes(config, 'no-convoys:');
+  // Should have welcome placeholder
+  assertStringIncludes(config, '📋 Welcome');
   assertStringIncludes(config, 'No active convoys');
 });
 
@@ -66,8 +66,8 @@ Deno.test('generateMprocsConfig sanitizes convoy names', () => {
 
   const config = generateMprocsConfig(convoys);
 
-  // Name should be sanitized (no spaces/special chars)
-  assertStringIncludes(config, 'Has-Spaces---Special-:');
+  // Name should be sanitized (no spaces/special chars) with status icon
+  assertStringIncludes(config, '🟢 Has-Spaces---Special-');
 });
 
 Deno.test('generateMprocsConfig truncates long names', () => {
@@ -81,14 +81,14 @@ Deno.test('generateMprocsConfig truncates long names', () => {
 
   const config = generateMprocsConfig(convoys);
 
-  // Name should be truncated to 30 chars
+  // Name should be truncated to 25 chars (now 25 to fit icons better)
   const lines = config.split('\n');
   const convoyLine = lines.find((l) => l.includes('This-is-a-very-long'));
   assertEquals(convoyLine !== undefined, true);
-  // The sanitized name before : should be <= 30 chars
-  const match = convoyLine!.match(/^\s+([^:]+):/);
+  // The sanitized name (after icon) before : should be <= 25 chars
+  const match = convoyLine!.match(/🟢 ([^"]+)"/);
   assertEquals(match !== null, true);
-  assertEquals(match![1].length <= 30, true);
+  assertEquals(match![1].length <= 25, true);
 });
 
 Deno.test('generateMprocsConfig includes convoy status in fallback message', () => {

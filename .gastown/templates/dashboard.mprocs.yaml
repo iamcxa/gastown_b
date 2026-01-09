@@ -11,27 +11,44 @@
 #
 # Key design decisions:
 # - mprocs only "attaches" to tmux sessions - closing mprocs leaves sessions running
-# - Each convoy shows up as a separate mprocs pane
-# - A "status" pane shows overall convoy status via `gastown --status`
+# - Each convoy shows up as a separate mprocs pane with status icon
+# - A "status" pane shows overall convoy status with Gastown branding
+# - Uses bash loop for cross-platform compatibility (macOS doesn't have `watch`)
+
+proc_list_width: 25
 
 procs:
-  # Status overview - refreshes every 2 seconds
-  status:
-    shell: "watch -n 2 -c \"gastown --status\""
+  # Status overview with Gastown ASCII banner
+  # Refreshes every 2 seconds using bash loop (cross-platform)
+  "⛽ Status":
+    shell: "bash -c 'while true; do clear; echo -e \"\\033[1m\\033[33m
+   ╔═══════════════════════════════════════╗
+   ║     ⛽  G A S   T O W N  ⛽          ║
+   ║         Dashboard v1.0                ║
+   ╚═══════════════════════════════════════╝
+\\033[0m\"; echo -e \"\\033[36mLast updated: $(date +%H:%M:%S)\\033[0m\"; echo; gastown --status 2>/dev/null; sleep 2; done'"
 
-  # Example convoy pane - attaches to its tmux session
-  # If session doesn't exist, shows a fallback message
-  convoy-example:
-    shell: "tmux attach -t gastown-convoy-example 2>/dev/null || echo \"Session 'gastown-convoy-example' not running.\""
+  # Example convoy panes with status icons:
+  #
+  # 🟢 = running (tmux session active)
+  # 🟡 = idle (convoy open but no session)
+  # 🔴 = stopped (convoy closed)
 
-  # Another convoy example
-  auth-feature:
-    shell: "tmux attach -t gastown-auth-feature 2>/dev/null || echo \"Session 'gastown-auth-feature' not running.\""
+  "🟢 chess-game":
+    shell: "tmux attach -t gastown-abc123 2>/dev/null || echo -e \"\\033[32m\\033[1mSession: gastown-abc123\\033[0m\\n\\033[2mStatus: running\\nNot attached. Press 'r' to retry.\\033[0m\""
 
-# When no convoys are active, a placeholder is shown:
+  "🟡 auth-feature":
+    shell: "tmux attach -t gastown-def456 2>/dev/null || echo -e \"\\033[33m\\033[1mSession: gastown-def456\\033[0m\\n\\033[2mStatus: idle\\nNot attached. Press 'r' to retry.\\033[0m\""
+
+# When no convoys are active, a welcome pane is shown:
 #
-# procs:
-#   status:
-#     shell: "watch -n 2 -c \"gastown --status\""
-#   no-convoys:
-#     shell: "echo \"No active convoys. Start one with: gastown <task>\""
+#   "📋 Welcome":
+#     shell: "echo -e \"\\033[33m\\033[1mWelcome to Gas Town!\\033[0m\\n\\n...\"
+
+# Keyboard shortcuts in mprocs:
+# q    - quit dashboard (sessions keep running)
+# j/k  - navigate process list
+# s    - start process
+# x    - stop process
+# r    - restart process
+# ?    - toggle help
