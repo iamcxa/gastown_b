@@ -1524,7 +1524,641 @@ git commit -m "test: add integration test for stake command"
 
 ---
 
-### Task 4.2: Final Push and Sync
+### Task 4.2: Create Boomtown mprocs Configuration Generator
+
+**Reference:** `gastown_b/src/dashboard/mprocs.ts`
+
+**Files:**
+- Create: `paydirt/src/paydirt/boomtown/mprocs.ts`
+- Test: `paydirt/src/paydirt/boomtown/mprocs.test.ts`
+
+**Step 1: Create directory**
+
+```bash
+mkdir -p src/paydirt/boomtown
+```
+
+**Step 2: Create mprocs.ts**
+
+```typescript
+// src/paydirt/boomtown/mprocs.ts
+/**
+ * mprocs configuration generator for Paydirt Boomtown dashboard.
+ * Generates YAML configuration for mprocs TUI to manage Caravan sessions.
+ *
+ * Design: GOLD RUSH / WESTERN FRONTIER AESTHETIC
+ * - Mining camp banner with gold nuggets
+ * - Lantern-style status indicators
+ * - Wooden frame patterns
+ * - Frontier telegraph-style info displays
+ */
+
+export type CaravanStatus = 'running' | 'stopped' | 'idle';
+
+export interface DashboardCaravanInfo {
+  id: string;
+  name: string;
+  status: CaravanStatus;
+}
+
+// ASCII Art Banner - Gold Rush Theme
+const ASCII_BANNER = `
+██████╗  █████╗ ██╗   ██╗██████╗ ██╗██████╗ ████████╗
+██╔══██╗██╔══██╗╚██╗ ██╔╝██╔══██╗██║██╔══██╗╚══██╔══╝
+██████╔╝███████║ ╚████╔╝ ██║  ██║██║██████╔╝   ██║
+██╔═══╝ ██╔══██║  ╚██╔╝  ██║  ██║██║██╔══██╗   ██║
+██║     ██║  ██║   ██║   ██████╔╝██║██║  ██║   ██║
+╚═╝     ╚═╝  ╚═╝   ╚═╝   ╚═════╝ ╚═╝╚═╝  ╚═╝   ╚═╝
+`.trim();
+
+// Border components - Western/Mining aesthetic
+const BORDER = {
+  TL: '╔', TR: '╗', BL: '╚', BR: '╝',
+  H: '═', V: '║',
+  PICKAXE: '⛏',
+  NUGGET: '◆',
+  LANTERN: '🏮',
+};
+
+// Status indicators
+const INDICATOR = {
+  SPIN: ['◐', '◓', '◑', '◒'],
+  RUNNING: '▶',
+  STOPPED: '■',
+  IDLE: '◇',
+  ACTIVE: '●',
+  INACTIVE: '○',
+};
+
+/**
+ * Generate the Control Room status display script.
+ * Creates a gold rush themed ASCII dashboard.
+ */
+export function generateStatusScriptContent(): string {
+  return `#!/bin/bash
+# ══════════════════════════════════════════════════════════════════════════════
+# PAYDIRT BOOMTOWN - Mining Camp Control Room
+# Gold Rush / Western Frontier Aesthetic
+# ══════════════════════════════════════════════════════════════════════════════
+
+# ANSI Color Codes - Gold Rush Theme
+BG="\\033[48;5;94m"        # Dark brown background
+FG="\\033[38;5;220m"       # Gold foreground
+AMBER="\\033[38;5;214m"    # Amber accent
+DIM="\\033[38;5;137m"      # Dim tan
+BOLD="\\033[1m"
+RESET="\\033[0m"
+
+SESSION_START=\$(date +%s)
+SPIN=('◐' '◓' '◑' '◒')
+FRAME=0
+
+set_background() {
+  echo -ne "\${BG}"
+  clear
+}
+
+print_header() {
+  echo -e "\${BG}\${FG}"
+  echo "  ██████╗  █████╗ ██╗   ██╗██████╗ ██╗██████╗ ████████╗"
+  echo "  ██╔══██╗██╔══██╗╚██╗ ██╔╝██╔══██╗██║██╔══██╗╚══██╔══╝"
+  echo "  ██████╔╝███████║ ╚████╔╝ ██║  ██║██║██████╔╝   ██║   "
+  echo "  ██╔═══╝ ██╔══██║  ╚██╔╝  ██║  ██║██║██╔══██╗   ██║   "
+  echo "  ██║     ██║  ██║   ██║   ██████╔╝██║██║  ██║   ██║   "
+  echo "  ╚═╝     ╚═╝  ╚═╝   ╚═╝   ╚═════╝ ╚═╝╚═╝  ╚═╝   ╚═╝   "
+  echo ""
+  echo -e "\${AMBER} ⛏────────────────────────────────────────────────────────────────────⛏"
+  echo -e " │\${BOLD}  B O O M T O W N   -   M U L T I - A G E N T   O R C H E S T R A T O R\${AMBER} │"
+  echo -e " ⛏────────────────────────────────────────────────────────────────────⛏"
+}
+
+print_system_panel() {
+  local spin=\${SPIN[\$FRAME]}
+  local time=\$(date '+%Y-%m-%d %H:%M:%S')
+  local now=\$(date +%s)
+  local elapsed=\$((now - SESSION_START))
+  local hours=\$((elapsed / 3600))
+  local mins=\$(( (elapsed % 3600) / 60 ))
+  local secs=\$((elapsed % 60))
+  local runtime_str=\$(printf "%02d:%02d:%02d" \$hours \$mins \$secs)
+
+  echo ""
+  echo -e "\${FG} ╔══════════════════════════════════════════════════════════════════════╗"
+  echo -e " ║  \${AMBER}\$spin MINING CAMP STATUS\${FG}                                            ║"
+  echo -e " ╠══════════════════════════════════════════════════════════════════════╣"
+  printf " ║  \${DIM}◆ TIMESTAMP    │\${RESET}\${BG}\${FG} %-40s\${FG}         ║\\n" "\$time"
+  printf " ║  \${DIM}◆ RUNTIME      │\${RESET}\${BG}\${FG} %-40s\${FG}         ║\\n" "\$runtime_str"
+  printf " ║  \${DIM}◆ PLATFORM     │\${RESET}\${BG}\${FG} %-40s\${FG}         ║\\n" "\$(uname -s) \$(uname -m)"
+  echo -e " ╚══════════════════════════════════════════════════════════════════════╝"
+}
+
+print_caravan_stats() {
+  local active=0
+  local idle=0
+
+  if command -v bd &> /dev/null; then
+    active=\$(bd list --label paydirt:caravan --status in_progress --brief 2>/dev/null | wc -l | tr -d ' ')
+    idle=\$(bd list --label paydirt:caravan --status open --brief 2>/dev/null | wc -l | tr -d ' ')
+  fi
+
+  local total=\$((active + idle))
+
+  echo ""
+  echo -e "\${FG} ╔══════════════════════════════════════════════════════════════════════╗"
+  echo -e " ║  \${AMBER}◆ CARAVAN STATUS\${FG}                                                    ║"
+  echo -e " ╠══════════════════════════════════════════════════════════════════════╣"
+  printf " ║  Active: \${AMBER}%-4s\${FG} │  Idle: \${DIM}%-4s\${FG} │  Total: %-4s                       ║\\n" "\$active" "\$idle" "\$total"
+  echo -e " ╚══════════════════════════════════════════════════════════════════════╝"
+}
+
+print_controls_panel() {
+  echo ""
+  echo -e "\${FG} ╔══════════════════════════════════════════════════════════════════════╗"
+  echo -e " ║  \${AMBER}◆ MPROCS CONTROLS\${FG}                                                    ║"
+  echo -e " ╠════════════════════╦════════════════════╦════════════════════════════╣"
+  echo -e " ║  [C-a] Focus List  ║  [r] Restart Proc  ║  [q] Exit Boomtown         ║"
+  echo -e " ║  [j/k] Navigate    ║  [x] Stop Process  ║  [z] Zoom Terminal         ║"
+  echo -e " ╚════════════════════╩════════════════════╩════════════════════════════╝"
+  echo -e "\${RESET}"
+}
+
+# Main loop
+while true; do
+  set_background
+  print_header
+  print_system_panel
+  print_caravan_stats
+  print_controls_panel
+  FRAME=\$(( (FRAME + 1) % 4 ))
+  sleep 2
+done
+`;
+}
+
+/**
+ * Generate mprocs YAML configuration for Caravans.
+ */
+export function generateMprocsConfig(
+  caravans: DashboardCaravanInfo[],
+  statusScriptPath?: string,
+  caravanScriptPaths?: Map<string, string>,
+  campBossScriptPath?: string,
+): string {
+  const lines: string[] = [];
+
+  // YAML header
+  lines.push('# ══════════════════════════════════════════════════════════════════════════════');
+  lines.push('#  PAYDIRT BOOMTOWN - Multi-Agent Orchestrator Dashboard');
+  lines.push('# ══════════════════════════════════════════════════════════════════════════════');
+  lines.push('');
+  lines.push('proc_list_width: 24');
+  lines.push('scrollback: 5000');
+  lines.push('mouse_scroll_speed: 3');
+  lines.push('hide_keymap_window: true');
+  lines.push('server: "127.0.0.1:4051"');
+  lines.push('');
+  lines.push('procs:');
+
+  // Control Room
+  lines.push('');
+  lines.push('  "◆ CONTROL ROOM":');
+  if (statusScriptPath) {
+    lines.push(`    shell: "bash ${statusScriptPath}"`);
+  } else {
+    lines.push(`    shell: "bash -c 'while true; do clear; echo \\"PAYDIRT BOOMTOWN\\"; date; sleep 2; done'"`);
+  }
+  lines.push('    autorestart: true');
+
+  // Camp Boss pane
+  lines.push('');
+  lines.push('  "⛺ CAMP BOSS":');
+  if (campBossScriptPath) {
+    lines.push(`    shell: "bash ${campBossScriptPath}"`);
+  } else {
+    lines.push(`    shell: "bash -c 'while true; do clear; echo \\"CAMP BOSS - Press s to start\\"; read -t 1 -n 1 key; done'"`);
+  }
+  lines.push('    autorestart: true');
+
+  // Caravan panes
+  if (caravans.length > 0) {
+    for (const caravan of caravans) {
+      const sessionName = \`paydirt-\${caravan.id}\`;
+      const statusGlyph = caravan.status === 'running' ? '▶' : caravan.status === 'idle' ? '◇' : '■';
+      const paneLabel = caravan.id.substring(0, 18);
+
+      lines.push('');
+      lines.push(\`  "\${statusGlyph} \${paneLabel}":\`);
+
+      const scriptPath = caravanScriptPaths?.get(caravan.id);
+      if (scriptPath) {
+        lines.push(\`    shell: "tmux attach -t \${sessionName} 2>/dev/null || bash \${scriptPath}"\`);
+      } else {
+        lines.push(\`    shell: "tmux attach -t \${sessionName} 2>/dev/null || bash -c 'echo Caravan: \${caravan.id}; sleep 5'"\`);
+      }
+    }
+  }
+
+  lines.push('');
+  return lines.join('\\n') + '\\n';
+}
+
+/**
+ * Write mprocs configuration and scripts to temp directory.
+ */
+export async function writeMprocsConfig(
+  caravans: DashboardCaravanInfo[],
+  paydirtPath: string,
+): Promise<string> {
+  const tempDir = await Deno.makeTempDir({ prefix: 'paydirt-boomtown-' });
+
+  // Write Control Room status script
+  const statusScriptPath = \`\${tempDir}/control-room.sh\`;
+  await Deno.writeTextFile(statusScriptPath, generateStatusScriptContent());
+  await Deno.chmod(statusScriptPath, 0o755);
+
+  // Generate and write config
+  const config = generateMprocsConfig(caravans, statusScriptPath);
+  const configPath = \`\${tempDir}/mprocs.yaml\`;
+  await Deno.writeTextFile(configPath, config);
+
+  return configPath;
+}
+```
+
+**Step 3: Create test file**
+
+```typescript
+// src/paydirt/boomtown/mprocs.test.ts
+import { assertStringIncludes } from '@std/assert';
+import { generateMprocsConfig, generateStatusScriptContent } from './mprocs.ts';
+
+Deno.test('generateStatusScriptContent includes Paydirt branding', () => {
+  const script = generateStatusScriptContent();
+  assertStringIncludes(script, 'PAYDIRT');
+  assertStringIncludes(script, 'BOOMTOWN');
+  assertStringIncludes(script, 'CARAVAN STATUS');
+});
+
+Deno.test('generateMprocsConfig includes Control Room and Camp Boss', () => {
+  const config = generateMprocsConfig([], undefined, undefined, undefined);
+  assertStringIncludes(config, 'CONTROL ROOM');
+  assertStringIncludes(config, 'CAMP BOSS');
+});
+
+Deno.test('generateMprocsConfig includes Caravan panes', () => {
+  const caravans = [
+    { id: 'pd-001', name: 'Test Caravan', status: 'running' as const },
+  ];
+  const config = generateMprocsConfig(caravans);
+  assertStringIncludes(config, 'pd-001');
+});
+```
+
+**Step 4: Run tests**
+
+```bash
+deno test src/paydirt/boomtown/mprocs.test.ts
+```
+
+**Step 5: Commit**
+
+```bash
+git add src/paydirt/boomtown/
+git commit -m "feat(boomtown): add mprocs configuration generator"
+```
+
+---
+
+### Task 4.3: Create Camp Boss Pane Script Generator
+
+**Reference:** `gastown_b/src/dashboard/commander-pane.ts`
+
+**Files:**
+- Create: `paydirt/src/paydirt/boomtown/camp-boss-pane.ts`
+
+**Step 1: Create camp-boss-pane.ts**
+
+```typescript
+// src/paydirt/boomtown/camp-boss-pane.ts
+/**
+ * Camp Boss pane script generator for Boomtown dashboard.
+ * Manages the Claude session for the Camp Boss (human interface).
+ */
+
+/**
+ * Generate the Camp Boss pane script.
+ *
+ * @param paydirtPath - Path to paydirt binary
+ * @param agentPath - Path to camp-boss.md agent file
+ * @param projectRoot - User's project root directory
+ */
+export function generateCampBossScriptContent(
+  paydirtPath: string,
+  agentPath: string,
+  projectRoot: string,
+): string {
+  return `#!/bin/bash
+# PAYDIRT BOOMTOWN - Camp Boss Pane
+# Human interface for strategic control
+
+SESSION_NAME="paydirt-camp-boss"
+
+# Colors - Gold Rush Theme
+BG="\\033[48;5;94m"
+FG="\\033[38;5;220m"
+AMBER="\\033[38;5;214m"
+DIM="\\033[38;5;137m"
+RESET="\\033[0m"
+
+SPIN=('◐' '◓' '◑' '◒')
+FRAME=0
+
+show_welcome() {
+  local spin=\${SPIN[\$FRAME]}
+  FRAME=\$(( (FRAME + 1) % 4 ))
+  echo -ne "\${BG}"
+  clear
+  echo -e "\${FG}"
+  echo "  ⛺ CAMP BOSS - Strategic Control"
+  echo -e "\${AMBER}"
+  echo " ╔══════════════════════════════════════════════════════════════╗"
+  echo -e " ║  \$spin Welcome to Paydirt Boomtown                           ║"
+  echo " ╠══════════════════════════════════════════════════════════════╣"
+  echo -e " ║  \${AMBER}[s]\${FG} START Camp Boss (launch Claude)                        ║"
+  echo -e " ║  \${AMBER}[a]\${FG} ATTACH to running session                              ║"
+  echo -e " ║  \${DIM}[C-a] Focus process list  [q] Exit\${FG}                         ║"
+  echo " ╠══════════════════════════════════════════════════════════════╣"
+  if tmux has-session -t "\$SESSION_NAME" 2>/dev/null; then
+    echo -e " ║  \${FG}✓ Session ACTIVE - press [a] to attach\${FG}                     ║"
+  else
+    echo -e " ║  \${AMBER}○ Session NOT RUNNING - press [s] to start\${FG}                 ║"
+  fi
+  echo -e " ╚══════════════════════════════════════════════════════════════╝\${RESET}"
+}
+
+start_camp_boss() {
+  echo -e "\\n\${AMBER}⛺ Starting Camp Boss...\${RESET}"
+  if ! tmux has-session -t "\$SESSION_NAME" 2>/dev/null; then
+    tmux new-session -d -s "\$SESSION_NAME" -c "${projectRoot}"
+    tmux send-keys -t "\$SESSION_NAME" "cd ${projectRoot} && claude --agent ${agentPath}" Enter
+    sleep 2
+  fi
+}
+
+attach_to_session() {
+  if tmux has-session -t "\$SESSION_NAME" 2>/dev/null; then
+    echo -e "\\n\${FG}⛺ Attaching to Camp Boss...\${RESET}"
+    sleep 1
+    tmux attach -t "\$SESSION_NAME"
+    echo -e "\\n\${FG}◇ Detached\${RESET}"
+    sleep 1
+  else
+    echo -e "\\n\${AMBER}⚠ No active session\${RESET}"
+    sleep 2
+  fi
+}
+
+# Main loop
+while true; do
+  if tmux has-session -t "\$SESSION_NAME" 2>/dev/null; then
+    attach_to_session
+    continue
+  fi
+  show_welcome
+  read -t 1 -n 1 key 2>/dev/null || key=""
+  case "\$key" in
+    s|S) start_camp_boss ;;
+    a|A) attach_to_session ;;
+  esac
+done
+`;
+}
+```
+
+**Step 2: Commit**
+
+```bash
+git add src/paydirt/boomtown/camp-boss-pane.ts
+git commit -m "feat(boomtown): add Camp Boss pane script generator"
+```
+
+---
+
+### Task 4.4: Create Boomtown Dashboard Launcher
+
+**Reference:** `gastown_b/src/dashboard/dashboard.ts`
+
+**Files:**
+- Create: `paydirt/src/paydirt/boomtown/dashboard.ts`
+- Create: `paydirt/src/paydirt/boomtown/mod.ts`
+
+**Step 1: Create dashboard.ts**
+
+```typescript
+// src/paydirt/boomtown/dashboard.ts
+/**
+ * Boomtown dashboard launcher for Paydirt.
+ * Uses mprocs to provide a TUI overview of all running Caravans.
+ */
+
+import { writeMprocsConfig, type DashboardCaravanInfo } from './mprocs.ts';
+
+/**
+ * Find the paydirt binary path.
+ */
+async function findPaydirtPath(): Promise<string> {
+  const localPath = `${Deno.cwd()}/paydirt`;
+  try {
+    const stat = await Deno.stat(localPath);
+    if (stat.isFile) return localPath;
+  } catch { /* not found */ }
+
+  const whichCmd = new Deno.Command('which', {
+    args: ['paydirt'],
+    stdout: 'piped',
+    stderr: 'null',
+  });
+  const result = await whichCmd.output();
+  if (result.success) {
+    const path = new TextDecoder().decode(result.stdout).trim();
+    if (path) return path;
+  }
+
+  throw new Error('paydirt binary not found');
+}
+
+/**
+ * Get Caravans from bd CLI.
+ */
+async function listCaravans(): Promise<DashboardCaravanInfo[]> {
+  try {
+    const cmd = new Deno.Command('bd', {
+      args: ['list', '--label', 'paydirt:caravan', '--brief'],
+      stdout: 'piped',
+      stderr: 'null',
+    });
+    const result = await cmd.output();
+    if (!result.success) return [];
+
+    const output = new TextDecoder().decode(result.stdout);
+    const caravans: DashboardCaravanInfo[] = [];
+
+    for (const line of output.split('\\n')) {
+      const parts = line.trim().split(/\\s+/);
+      if (parts.length >= 2) {
+        caravans.push({
+          id: parts[0],
+          name: parts.slice(1).join(' '),
+          status: 'idle',
+        });
+      }
+    }
+    return caravans;
+  } catch {
+    return [];
+  }
+}
+
+/**
+ * Launch the Boomtown dashboard.
+ */
+export async function launchBoomtown(): Promise<void> {
+  console.log('⛏ Launching Paydirt Boomtown...');
+
+  let paydirtPath: string;
+  try {
+    paydirtPath = await findPaydirtPath();
+    console.log(`Using paydirt at: ${paydirtPath}`);
+  } catch (error) {
+    console.error((error as Error).message);
+    Deno.exit(1);
+  }
+
+  const caravans = await listCaravans();
+  console.log(`Found ${caravans.length} caravan(s)`);
+
+  const configPath = await writeMprocsConfig(caravans, paydirtPath);
+  console.log('Starting mprocs...');
+
+  const process = new Deno.Command('mprocs', {
+    args: ['--config', configPath],
+    stdin: 'inherit',
+    stdout: 'inherit',
+    stderr: 'inherit',
+  });
+
+  try {
+    const status = await process.output();
+    // Cleanup
+    try {
+      await Deno.remove(configPath);
+      const tempDir = configPath.substring(0, configPath.lastIndexOf('/'));
+      await Deno.remove(tempDir, { recursive: true });
+    } catch { /* ignore */ }
+
+    if (!status.success) {
+      console.error('mprocs exited with error');
+      Deno.exit(status.code);
+    }
+  } catch (error) {
+    if ((error as Error).message.includes('No such file')) {
+      console.error('Error: mprocs not found. Install with: brew install mprocs');
+      Deno.exit(1);
+    }
+    throw error;
+  }
+}
+```
+
+**Step 2: Create mod.ts**
+
+```typescript
+// src/paydirt/boomtown/mod.ts
+export { launchBoomtown } from './dashboard.ts';
+export {
+  generateMprocsConfig,
+  writeMprocsConfig,
+  generateStatusScriptContent,
+  type DashboardCaravanInfo,
+  type CaravanStatus,
+} from './mprocs.ts';
+export { generateCampBossScriptContent } from './camp-boss-pane.ts';
+```
+
+**Step 3: Update paydirt.ts to add boomtown command**
+
+```typescript
+// In paydirt.ts main() function, add:
+case 'boomtown': {
+  const { launchBoomtown } = await import('./src/paydirt/boomtown/mod.ts');
+  await launchBoomtown();
+  break;
+}
+```
+
+**Step 4: Run and test**
+
+```bash
+deno run --allow-all paydirt.ts boomtown
+```
+
+Expected: mprocs TUI launches with Control Room and Camp Boss panes
+
+**Step 5: Commit**
+
+```bash
+git add src/paydirt/boomtown/ paydirt.ts
+git commit -m "feat(boomtown): add dashboard launcher with mprocs integration"
+```
+
+---
+
+### Task 4.5: Create Boomtown Integration Test
+
+**Files:**
+- Create: `paydirt/tests/integration/boomtown.test.ts`
+
+**Step 1: Create test**
+
+```typescript
+// tests/integration/boomtown.test.ts
+import { assertStringIncludes } from '@std/assert';
+import { generateMprocsConfig } from '../../src/paydirt/boomtown/mprocs.ts';
+
+Deno.test('boomtown generates valid mprocs config', () => {
+  const config = generateMprocsConfig([]);
+  assertStringIncludes(config, 'procs:');
+  assertStringIncludes(config, 'CONTROL ROOM');
+  assertStringIncludes(config, 'CAMP BOSS');
+});
+
+Deno.test('boomtown includes caravan panes', () => {
+  const caravans = [
+    { id: 'pd-001', name: 'Test', status: 'running' as const },
+    { id: 'pd-002', name: 'Another', status: 'idle' as const },
+  ];
+  const config = generateMprocsConfig(caravans);
+  assertStringIncludes(config, 'pd-001');
+  assertStringIncludes(config, 'pd-002');
+});
+```
+
+**Step 2: Run tests**
+
+```bash
+deno test tests/integration/boomtown.test.ts --allow-all
+```
+
+**Step 3: Commit**
+
+```bash
+git add tests/integration/boomtown.test.ts
+git commit -m "test: add Boomtown integration tests"
+```
+
+---
+
+### Task 4.6: Final Push and Sync
 
 **Step 1: Run all tests**
 
@@ -1560,10 +2194,12 @@ This plan creates:
 1. **Project Skeleton** - Git repo, Deno project, bd tracking, plugin structure
 2. **Paydirt Layer** - Path utilities, Claude command builder, Prospect definitions, Slash commands, CLI implementation
 3. **Goldflow Layer** - Types, Delivery pipeline
-4. **Integration** - Tests, final sync
+4. **Boomtown Dashboard** - mprocs configuration, Camp Boss pane, dashboard launcher (reference: gastown dashboard)
+5. **Integration** - Tests, final sync
 
 Key architectural decisions:
 - Uses `--plugin-dir` to load Paydirt as Claude plugin
 - Uses `--add-dir` to add both Paydirt install dir and user project dir
 - No file copying - all resources accessed via paths
 - Prospects define both Paydirt (narrative) and Goldflow (execution) roles
+- Boomtown dashboard uses mprocs TUI with Gold Rush aesthetic (adapted from gastown's Soviet/Industrial theme)

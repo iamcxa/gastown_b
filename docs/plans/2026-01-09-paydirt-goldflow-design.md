@@ -350,6 +350,164 @@ bd comments add $JOURNAL "LINEAR_SYNC: P0=2 P1=5 P2+=10 (timestamp)"
 | `paydirt:mode:prime` | Prime 模式標記 |
 | `paydirt:backlog` | 待辦佇列 |
 
+### BD 記錄頻率規範
+
+每個 Prospect 必須遵循以下記錄規則，確保工作進度可追蹤、可恢復。
+
+#### 通用規則（所有 Prospect）
+
+| 事件 | 必須執行的 bd 命令 | 說明 |
+|------|-------------------|------|
+| **開始工作** | `bd agent state $PAYDIRT_CLAIM working` | 宣告開始處理任務 |
+| **每完成一個步驟** | `bd comments add $PAYDIRT_CLAIM "PROGRESS: X/Y steps"` | 記錄進度比例 |
+| **每 5 分鐘（長任務）** | `bd agent heartbeat $PAYDIRT_CLAIM` | 證明仍在運作 |
+| **Context > 70%** | `bd comments add $PAYDIRT_CLAIM "CHECKPOINT: context=X%..."` | 準備 respawn |
+| **Context > 85%** | `bd agent state $PAYDIRT_CLAIM stuck` | 觸發 respawn 流程 |
+| **完成工作** | `bd agent state $PAYDIRT_CLAIM done` | 標記完成 |
+| **遇到阻塞** | `bd agent state $PAYDIRT_CLAIM blocked` + `QUESTION:` comment | 等待回答 |
+| **產出交付物** | `bd comments add $PAYDIRT_CLAIM "OUTPUT: ..."` | 記錄產出位置 |
+
+#### 各角色特定記錄規則
+
+##### Camp Boss（Journal 模式）
+
+| 時機 | 記錄內容 | 範例 |
+|------|----------|------|
+| 收到 Scout 報告 | `DISCOVERY:` | `bd comments add $JOURNAL "DISCOVERY: [Linear] LIN-456..."` |
+| 收到用戶請求 | `REQUEST:` | `bd comments add $JOURNAL "REQUEST: User wants..."` |
+| 做出進件決策 | `INTAKE_DECISION:` | `bd comments add $JOURNAL "INTAKE_DECISION: task → STAKE"` |
+| Caravan 狀態變更 | `OBSERVATION:` | `bd comments add $JOURNAL "OBSERVATION: caravan completed"` |
+| 每 10 分鐘 | `LINEAR_SYNC:` | `bd comments add $JOURNAL "LINEAR_SYNC: P0=2 P1=5..."` |
+
+##### Trail Boss（Caravan 模式）
+
+| 時機 | 記錄內容 | 範例 |
+|------|----------|------|
+| 開始 Caravan | `bd update --status in_progress` | 標記 Caravan 開始 |
+| 委派前 | `DECISION:` | `"DECISION: Spawning Surveyor for design"` |
+| 需要決策時 | `QUESTION:` | `"QUESTION [decision]: Which auth provider?"` |
+| 收到 Prospect 完成 | `PROGRESS:` | `"PROGRESS: Design complete, starting breakdown"` |
+| 每次委派後 | Heartbeat | `bd agent heartbeat $PAYDIRT_CLAIM` |
+| 所有任務完成 | `bd update --status ready-for-review` | 進入交付流程 |
+
+##### Surveyor（Caravan 模式）
+
+| 時機 | 記錄內容 | 範例 |
+|------|----------|------|
+| 開始設計 | State + Progress | `bd agent state ... working` + `"PROGRESS: Starting brainstorm"` |
+| brainstorming 完成 | `PROGRESS:` | `"PROGRESS: Brainstorm done, writing plan"` |
+| 設計文檔完成 | `OUTPUT:` | `"OUTPUT: design=docs/plans/YYYY-MM-DD-feature.md"` |
+| 完成 | State | `bd agent state ... done` |
+
+##### Shift Boss（Caravan 模式）
+
+| 時機 | 記錄內容 | 範例 |
+|------|----------|------|
+| 開始分解 | State | `bd agent state ... working` |
+| 每創建 3 個任務 | `TASKS:` | `"TASKS: created pd-001, pd-002, pd-003"` |
+| 設定依賴 | `TASKS:` | `"TASKS: pd-002 depends on pd-001"` |
+| 所有任務創建完成 | `TASKS:` + State | `"TASKS: [pd-001..pd-010] ready"` + done |
+
+##### Miner（Caravan 模式）
+
+| 時機 | 記錄內容 | 範例 |
+|------|----------|------|
+| 開始實作 | State | `bd agent state ... working` |
+| **每完成一個 TDD cycle** | `PROGRESS:` | `"PROGRESS: 3/5 steps, files: src/auth.ts"` |
+| 每次 git commit | `PROGRESS:` | `"PROGRESS: Committed: feat(auth): add login"` |
+| Context > 70% | `CHECKPOINT:` | `"CHECKPOINT: context=75%, current-file=src/auth.ts:125"` |
+| 任務完成 | State + Status | `bd agent state ... done` + `--status ready-for-review` |
+
+##### Assayer（Caravan 模式）
+
+| 時機 | 記錄內容 | 範例 |
+|------|----------|------|
+| 開始審查 | State | `bd agent state ... working` |
+| 每個檔案審查完 | `REVIEW:` | `"REVIEW: src/auth.ts - 2 issues found"` |
+| 審查完成（通過） | `REVIEW:` | `"REVIEW: APPROVED - no critical issues"` |
+| 審查完成（不通過） | `REVIEW:` | `"REVIEW: REJECTED - 3 issues require fix"` |
+| Gate 結果 | `REVIEW_GATE_1:` | `"REVIEW_GATE_1: status=pass, findings=[...]"` |
+
+##### Canary（Caravan 模式）
+
+| 時機 | 記錄內容 | 範例 |
+|------|----------|------|
+| 開始測試 | State | `bd agent state ... working` |
+| 每個測試套件完成 | `TEST-RESULT:` | `"TEST-RESULT: auth.spec.ts - 12 pass, 0 fail"` |
+| 測試全部通過 | `TEST-RESULT:` | `"TEST-RESULT: pass, coverage=87%, 42 tests"` |
+| 測試失敗 | `TEST-RESULT:` | `"TEST-RESULT: fail, 2 failures: [list]"` |
+
+##### Smelter（Caravan 模式）
+
+| 時機 | 記錄內容 | 範例 |
+|------|----------|------|
+| 開始審計 | State | `bd agent state ... working` |
+| Lint 完成 | `AUDIT:` | `"AUDIT: lint - 0 errors, 3 warnings"` |
+| 類型檢查完成 | `AUDIT:` | `"AUDIT: typecheck - pass"` |
+| 品質審計完成 | `AUDIT:` | `"AUDIT: pass - code quality acceptable"` |
+
+##### Claim Agent（Agent 模式 - 雙寫）
+
+| 時機 | 記錄內容 | 範例 |
+|------|----------|------|
+| 發現 QUESTION | 讀取 | `bd comments $PAYDIRT_CLAIM \| grep QUESTION` |
+| 回答問題 | `ANSWER:` to Caravan | `"ANSWER [high]: Use Supabase Auth..."` |
+| **同時** | `DECISION:` to Ledger | `bd comments add $LEDGER "DECISION caravan=..."` |
+| 記錄決策摘要 | `DECISION-LOG:` to Caravan | `"DECISION-LOG: q=auth, a=Supabase, confidence=high"` |
+
+##### Scout（Source 模式）
+
+| 時機 | 記錄內容 | 範例 |
+|------|----------|------|
+| 發現新任務 | `DISCOVERY:` to Journal | `"DISCOVERY: [Linear] LIN-456 P1 assigned"` |
+| 掃描完成 | `SCAN:` to Journal | `"SCAN: Linear checked, 3 new P1 issues"` |
+| 外部狀態變更 | `EXTERNAL:` to Journal | `"EXTERNAL: PR #123 merged"` |
+
+#### CHECKPOINT 格式規範
+
+當 Context 使用率超過 70% 時，必須記錄完整 CHECKPOINT：
+
+```bash
+bd comments add $PAYDIRT_CLAIM "CHECKPOINT: context=75%
+state: implementing step 4/5
+current-file: src/auth.ts:125
+current-function: validateToken
+next-action: Add expiry check
+pending-tests: auth.spec.ts
+uncommitted-changes: yes
+last-commit: abc123"
+```
+
+**必填欄位：**
+- `context`: 目前 context 使用百分比
+- `state`: 目前執行狀態描述
+- `next-action`: 下一步要做什麼
+
+**選填欄位：**
+- `current-file`: 正在編輯的檔案
+- `current-function`: 正在編輯的函數
+- `pending-tests`: 待執行的測試
+- `uncommitted-changes`: 是否有未 commit 的變更
+- `last-commit`: 最後一次 commit hash
+
+#### 記錄頻率檢查清單
+
+每個 Prospect 啟動時應檢查：
+
+```
+[ ] 1. bd show $PAYDIRT_CLAIM - 讀取任務
+[ ] 2. bd agent state $PAYDIRT_CLAIM working - 宣告開始
+[ ] 3. bd comments $PAYDIRT_CLAIM - 檢查之前的 CHECKPOINT（如有）
+```
+
+每個 Prospect 結束時應執行：
+
+```
+[ ] 1. bd comments add $PAYDIRT_CLAIM "PROGRESS/OUTPUT/REVIEW/..." - 記錄結果
+[ ] 2. bd agent state $PAYDIRT_CLAIM done - 標記完成
+[ ] 3. bd update $PAYDIRT_CLAIM --status <next-status> - 更新狀態（如適用）
+```
+
 ---
 
 ## 6. Camp Boss 任務進件流程
@@ -586,7 +744,266 @@ pipelines:
 
 ---
 
-## 8. CLI 與環境變數
+## 8. 角色互動狀態流程
+
+本節提供完整的端到端流程圖，說明當 Camp Boss 收到任務後，各角色如何互動與狀態流轉。
+
+### 任務進件流程
+
+```
+┌─────────────────────────────────────────────────────────────────────────────┐
+│                           TASK INTAKE FLOW                                  │
+├─────────────────────────────────────────────────────────────────────────────┤
+│                                                                             │
+│   🔭 Scout                           👑 Chief Prospector (User)             │
+│   DISCOVERY:                         REQUEST:                               │
+│   └─> Linear/GitHub issue            └─> Direct command                     │
+│       priority, assignee                 "pd stake 'task'"                  │
+│                    │                              │                         │
+│                    └──────────┬───────────────────┘                         │
+│                               ▼                                             │
+│                    ┌────────────────────┐                                   │
+│                    │ ⛺ Camp Boss        │                                   │
+│                    │   (Journal Mode)   │                                   │
+│                    │   INTAKE_DECISION  │                                   │
+│                    └─────────┬──────────┘                                   │
+│                              │                                              │
+│              ┌───────────────┼───────────────┐                              │
+│              ▼               ▼               ▼                              │
+│         🚃 STAKE        📋 BACKLOG      ❌ REJECT                           │
+│         (New Caravan)   (Queue)         (Decline)                           │
+│                                                                             │
+└─────────────────────────────────────────────────────────────────────────────┘
+```
+
+### Phase 1: Task Intake（進件階段）
+
+**Camp Boss 狀態**
+
+| 狀態 | 說明 |
+|------|------|
+| `INTAKE_DECISION` | 評估任務優先級與可行性 |
+| `STAKE` | 決定啟動新 Caravan |
+
+```bash
+# Camp Boss Journal 記錄
+bd comments add $JOURNAL "REQUEST: User wants notification system
+scope: in-app only
+priority: P1
+linear: none"
+
+bd comments add $JOURNAL "INTAKE_DECISION: notification-system → STAKE
+source: user-request
+caravan: caravan-xyz
+priority: P1"
+```
+
+### Phase 2: Caravan Creation（車隊創建）
+
+```
+┌─────────────────────────────────────────────────────────────────────────────┐
+│                         CARAVAN CREATION                                    │
+├─────────────────────────────────────────────────────────────────────────────┤
+│                                                                             │
+│   Camp Boss executes:                                                       │
+│   └─> paydirt stake "Implement notification system" --priority P1           │
+│                                                                             │
+│   ┌──────────────────────────────────────────────────────────────────────┐  │
+│   │  1. Creates bd epic with label paydirt:caravan                        │  │
+│   │  2. Creates tmux session: paydirt-<claim-id>                         │  │
+│   │  3. Sets environment variables:                                       │  │
+│   │     - PAYDIRT_CLAIM=pd-xxx                                           │  │
+│   │     - PAYDIRT_CARAVAN=notification-system                            │  │
+│   │     - PAYDIRT_SESSION=paydirt-pd-xxx                                 │  │
+│   │  4. Spawns 🤠 Trail Boss in Caravan                                   │  │
+│   └──────────────────────────────────────────────────────────────────────┘  │
+│                                                                             │
+└─────────────────────────────────────────────────────────────────────────────┘
+```
+
+### Phase 3: Planning（規劃階段）
+
+```
+┌─────────────────────────────────────────────────────────────────────────────┐
+│                         PLANNING PHASE                                      │
+├─────────────────────────────────────────────────────────────────────────────┤
+│                                                                             │
+│   🤠 Trail Boss                                                             │
+│   ├─> State: working                                                        │
+│   ├─> bd agent state $PAYDIRT_CLAIM working                                │
+│   ├─> Check for $PAYDIRT_TUNNEL (Autopilot mode context)                   │
+│   │                                                                         │
+│   │   IF Prime Mode:                                                        │
+│   │   └─> Write QUESTION: to bd, wait for Claim Agent ANSWER:              │
+│   │                                                                         │
+│   │   IF Manual Mode:                                                       │
+│   │   └─> AskUserQuestion for clarification                                │
+│   │                                                                         │
+│   └─> Spawns 📐 Surveyor:                                                   │
+│       $PAYDIRT_BIN prospect surveyor --task "Design notification system"   │
+│                                                                             │
+│   📐 Surveyor                                                               │
+│   ├─> State: working                                                        │
+│   ├─> Invokes: superpowers:brainstorming                                   │
+│   ├─> Invokes: superpowers:writing-plans                                   │
+│   ├─> OUTPUT: docs/plans/YYYY-MM-DD-notification-design.md                  │
+│   └─> bd comments add $PAYDIRT_CLAIM "OUTPUT: design=docs/plans/..."       │
+│       bd agent state $PAYDIRT_CLAIM done                                   │
+│                                                                             │
+└─────────────────────────────────────────────────────────────────────────────┘
+```
+
+### Phase 4: Task Breakdown（任務分解）
+
+```
+┌─────────────────────────────────────────────────────────────────────────────┐
+│                         TASK BREAKDOWN                                      │
+├─────────────────────────────────────────────────────────────────────────────┤
+│                                                                             │
+│   🤠 Trail Boss (receives Surveyor completion)                              │
+│   └─> Spawns 👷 Shift Boss:                                                 │
+│       $PAYDIRT_BIN prospect shift-boss --task "Create tasks from design"   │
+│                                                                             │
+│   👷 Shift Boss                                                             │
+│   ├─> State: working                                                        │
+│   ├─> Reads: docs/plans/YYYY-MM-DD-notification-design.md                  │
+│   ├─> Invokes: superpowers:subagent-driven-development                     │
+│   ├─> Creates bd sub-tasks:                                                │
+│   │   bd create --title "Task 1: Setup DB schema" --type task              │
+│   │   bd create --title "Task 2: Implement API" --type task                │
+│   │   bd create --title "Task 3: Build UI" --type task                     │
+│   │   bd dep add pd-task-2 pd-task-1  # API depends on schema              │
+│   │                                                                         │
+│   └─> bd comments add $PAYDIRT_CLAIM "TASKS: [pd-task-1, pd-task-2, ...]"  │
+│       bd agent state $PAYDIRT_CLAIM done                                   │
+│                                                                             │
+└─────────────────────────────────────────────────────────────────────────────┘
+```
+
+### Phase 5: Implementation（實作階段）
+
+```
+┌─────────────────────────────────────────────────────────────────────────────┐
+│                         IMPLEMENTATION                                       │
+├─────────────────────────────────────────────────────────────────────────────┤
+│                                                                             │
+│   🤠 Trail Boss                                                             │
+│   └─> Invokes: superpowers:dispatching-parallel-agents                     │
+│   └─> Spawns ⛏️ Miners for independent tasks:                              │
+│       $PAYDIRT_BIN prospect miner --task "Implement: Setup DB schema"      │
+│                                                                             │
+│   ⛏️ Miner (per task)                                                       │
+│   ├─> State: working                                                        │
+│   ├─> bd show $PAYDIRT_CLAIM (read task details)                           │
+│   ├─> Invokes: superpowers:executing-plans                                 │
+│   ├─> Invokes: superpowers:test-driven-development                         │
+│   │                                                                         │
+│   │   TDD Loop:                                                             │
+│   │   ┌─────────────────────────────────────────┐                          │
+│   │   │  1. Write failing test                  │                          │
+│   │   │  2. Implement minimal code              │                          │
+│   │   │  3. Verify test passes                  │                          │
+│   │   │  4. Commit                              │                          │
+│   │   │  5. bd comments add "PROGRESS: X/Y"     │                          │
+│   │   │  6. Repeat                              │                          │
+│   │   └─────────────────────────────────────────┘                          │
+│   │                                                                         │
+│   ├─> Context Check (if > 80%):                                            │
+│   │   bd comments add "CHECKPOINT: context=85%, state=..."                 │
+│   │   bd agent state $PAYDIRT_CLAIM stuck → triggers respawn               │
+│   │                                                                         │
+│   └─> On completion:                                                        │
+│       bd update $PAYDIRT_CLAIM --status "ready-for-review"                 │
+│       bd agent state $PAYDIRT_CLAIM done                                   │
+│                                                                             │
+└─────────────────────────────────────────────────────────────────────────────┘
+```
+
+### Phase 6: Delivery Pipeline（交付管線）
+
+```
+┌─────────────────────────────────────────────────────────────────────────────┐
+│                         DELIVERY PIPELINE                                   │
+│                      (Goldflow Verifier Chain)                              │
+├─────────────────────────────────────────────────────────────────────────────┤
+│                                                                             │
+│   Trigger: status == "ready-for-review"                                     │
+│                                                                             │
+│   ┌─────────────────────────────────────────────────────────────────────┐   │
+│   │ GATE 1: 🔬 Assayer (superpowers:requesting-code-review)             │   │
+│   │ ├─> bd comments add "REVIEW_GATE_1: superpowers-code-review         │   │
+│   │ │   status: [pass|fail]"                                            │   │
+│   │ └─> On fail → return_to_miner                                       │   │
+│   └────────────────────────────┬────────────────────────────────────────┘   │
+│                                ▼ pass                                       │
+│   ┌─────────────────────────────────────────────────────────────────────┐   │
+│   │ GATE 2: code-review-toolkit agents                                  │   │
+│   │ ├─> code-reviewer                                                   │   │
+│   │ ├─> silent-failure-hunter                                           │   │
+│   │ ├─> type-design-analyzer (if applicable)                            │   │
+│   │ └─> bd comments add "REVIEW_GATE_2: code-review-toolkit             │   │
+│   │     agents_run: [...], status: [pass|fail]"                         │   │
+│   └────────────────────────────┬────────────────────────────────────────┘   │
+│                                ▼ pass                                       │
+│   ┌─────────────────────────────────────────────────────────────────────┐   │
+│   │ PR CREATION: 🤠 Trail Boss                                          │   │
+│   │ ├─> superpowers:finishing-a-development-branch                      │   │
+│   │ ├─> Reads .github/PULL_REQUEST_TEMPLATE.md                          │   │
+│   │ ├─> gh pr create --title "..." --body "..."                         │   │
+│   │ └─> bd comments add "PR_CREATED: #123"                              │   │
+│   └────────────────────────────┬────────────────────────────────────────┘   │
+│                                ▼                                            │
+│   ┌─────────────────────────────────────────────────────────────────────┐   │
+│   │ CI GATE: GitHub Actions                                             │   │
+│   │ ├─> gh pr checks <pr-number> --watch                                │   │
+│   │ └─> bd comments add "CI_GATE: [pass|fail]"                          │   │
+│   └────────────────────────────┬────────────────────────────────────────┘   │
+│                                ▼ pass                                       │
+│   ┌─────────────────────────────────────────────────────────────────────┐   │
+│   │ DELIVERED                                                           │   │
+│   │ ├─> bd update $PAYDIRT_CLAIM --status "delivered"                   │   │
+│   │ └─> bd comments add $JOURNAL "OBSERVATION: Caravan delivered #123"  │   │
+│   └─────────────────────────────────────────────────────────────────────┘   │
+│                                                                             │
+└─────────────────────────────────────────────────────────────────────────────┘
+```
+
+### 狀態流轉總覽
+
+```
+                               CARAVAN STATUS FLOW
+ ┌────────────────────────────────────────────────────────────────────────────┐
+ │                                                                            │
+ │  open ──▶ in_progress ──▶ ready-for-review ──▶ reviewing ──▶ pr-created   │
+ │                                  │                │            │           │
+ │                                  │                │            │           │
+ │                                  └── fix-required ◀────────────┘           │
+ │                                                                            │
+ │  pr-created ──▶ ci-pending ──▶ delivered ──▶ closed                        │
+ │                      │                                                     │
+ │                      └── fix-required                                      │
+ │                                                                            │
+ └────────────────────────────────────────────────────────────────────────────┘
+```
+
+### 角色狀態對照表
+
+| Prospect | Goldflow | 觸發時機 | 輸入 | 輸出 | Superpowers |
+|----------|----------|----------|------|------|-------------|
+| **Camp Boss** | Controller | 任務進件 | Scout DISCOVERY / User REQUEST | INTAKE_DECISION | `dispatching-parallel-agents` |
+| **Trail Boss** | Controller | Caravan 創建後 | 任務描述 | 協調指令 | `dispatching-parallel-agents`, `finishing-a-development-branch` |
+| **Surveyor** | Stage | Trail Boss 委派 | 任務描述 | 設計文檔 | `brainstorming`, `writing-plans` |
+| **Shift Boss** | Controller | 設計完成後 | 設計文檔 | bd 任務列表 | `subagent-driven-development` |
+| **Miner** | Processor | Shift Boss 分配後 | 具體任務 | 程式碼 + 測試 | `executing-plans`, `test-driven-development` |
+| **Assayer** | Verifier | ready-for-review | 程式碼變更 | 審查結果 | `requesting-code-review` |
+| **Canary** | Verifier | 測試階段 | 程式碼 | 測試報告 | `verification-before-completion` |
+| **Smelter** | Verifier | 品質改善 | 程式碼 | 重構結果 | `systematic-debugging` |
+| **Claim Agent** | Controller | Prime Mode 問題 | QUESTION: | ANSWER: | (決策路由) |
+| **Scout** | Source | 定期掃描 | Linear/GitHub | DISCOVERY: | (外部資料) |
+
+---
+
+## 9. CLI 與環境變數
 
 ### CLI 命令設計
 
@@ -641,7 +1058,7 @@ pd <command> [options]
 
 ---
 
-## 9. 建構策略
+## 10. 建構策略
 
 ### 建構原則
 
@@ -705,7 +1122,7 @@ bd init --prefix paydirt
 
 ---
 
-## 10. 視覺化角色設計
+## 11. 視覺化角色設計
 
 ```
                     👑 Chief Prospector (Human)
