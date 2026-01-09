@@ -196,162 +196,118 @@ done
 `;
 }
 
+
 /**
- * Generate convoy detail display script content (written to file).
- * Uses ANSI colors: Dark olive/green military theme.
- * Provides interactive options:
- * - [s] Open new terminal window and attach to convoy (via osascript on macOS)
- * - [C-a] Focus process list (mprocs built-in)
- * - [q] Exit dashboard (mprocs built-in)
+ * Generate convoy panel script that shows Claude directly in mprocs.
+ *
+ * Behavior:
+ * - If tmux session exists: attach directly (show Claude Code in mprocs pane)
+ * - If tmux session doesn't exist: show detail panel with [s] to start
+ * - After detach (Ctrl+b d): return to detail panel
  */
 function generateConvoyScriptContent(convoyId: string, convoyName: string, status: ConvoyStatus): string {
-  // Status visualization
   const statusGlyph = status === 'running' ? '▶' : status === 'idle' ? '◇' : '■';
   const statusLabel = status.toUpperCase();
-
-  // Progress bar based on status
   const progressFill = status === 'running' ? 5 : status === 'idle' ? 3 : 0;
   const progressBar = '█'.repeat(progressFill) + '░'.repeat(5 - progressFill);
-
-  // Activity sparkline (simulated)
-  const sparkline = status === 'running' ? '⣿⣷⣧⣇⡇⣇⣧⣷⣿' : '⠀⠀⠀⠀⠀⠀⠀⠀⠀';
-
-  // Escape for shell embedding
   const safeName = convoyName.replace(/"/g, '\\"').substring(0, 42);
   const safeId = convoyId.substring(0, 20);
+  const sessionName = `gastown-${convoyId}`;
 
   return `#!/bin/bash
-# ══════════════════════════════════════════════════════════════════════════════
-# GAS TOWN - Convoy Detail Panel
-# Dark Olive/Green Military Theme (contrast with Control Room's navy)
-# ══════════════════════════════════════════════════════════════════════════════
+# GAS TOWN - Convoy Panel (Shows Claude directly or detail view)
+SESSION_NAME="${sessionName}"
+CONVOY_ID="${safeId}"
+CONVOY_NAME="${safeName}"
 
-# ANSI Color Codes - Convoy Theme (Olive/Green)
-BG="\\033[48;5;22m"       # Dark olive green background
-FG="\\033[38;5;156m"      # Light green foreground
-AMBER="\\033[38;5;214m"   # Amber/orange accent
-DIM="\\033[38;5;242m"     # Dim gray
-BOLD="\\033[1m"
+# Colors
+BG="\\033[48;5;22m"
+FG="\\033[38;5;156m"
+AMBER="\\033[38;5;214m"
+DIM="\\033[38;5;242m"
 RESET="\\033[0m"
 
-# Spinner animation frames
 SPIN=('◐' '◓' '◑' '◒')
 FRAME=0
 
-# Convoy info
-CONVOY_ID="${safeId}"
-CONVOY_NAME="${safeName}"
-STATUS_GLYPH="${statusGlyph}"
-STATUS_LABEL="${statusLabel}"
-PROGRESS_BAR="${progressBar}"
-SPARKLINE="${sparkline}"
-
-set_background() {
+show_detail_panel() {
+  local spin=\${SPIN[\$FRAME]}
+  FRAME=$(( (FRAME + 1) % 4 ))
   echo -ne "\${BG}"
   clear
-}
-
-print_header() {
-  echo -e "\${BG}\${AMBER}"
-  echo " ║   ▄▄ •  ▄▄▄· .▄▄ ·     ▄▄▄▄▄      ▄▄▌ ▐ ▄▌ ▐ ▄                ║"
-  echo " ║  ▐█ ▀ ▪▐█ ▀█ ▐█ ▀.     •██  ▪     ██· █▌▐█•█▌▐█               ║"
-  echo " ║  ▄█ ▀█▄▄█▀▀█ ▄▀▀▀█▄     ▐█.▪ ▄█▀▄ ██▪▐█▐▐▌▐█▐▐▌               ║"
-  echo " ║  ▐█▄▪▐█▐█ ▪▐▌▐█▄▪▐█     ▐█▌·▐█▌.▐▌▐█▌██▐█▌██▐█▌               ║"
-  echo " ║  ·▀▀▀▀  ▀  ▀  ▀▀▀▀      ▀▀▀  ▀█▄▀▪ ▀▀▀▀ ▀▪▀▀ █▪               ║"
-}
-
-print_details_panel() {
-  local spin=\${SPIN[\$FRAME]}
-
+  echo -e "\${AMBER}"
+  echo "  ▄▄ •  ▄▄▄· .▄▄ ·     ▄▄▄▄▄      ▄▄▌ ▐ ▄▌ ▐ ▄ "
+  echo " ▐█ ▀ ▪▐█ ▀█ ▐█ ▀.     •██  ▪     ██· █▌▐█•█▌▐█"
+  echo " ▄█ ▀█▄▄█▀▀█ ▄▀▀▀█▄     ▐█.▪ ▄█▀▄ ██▪▐█▐▐▌▐█▐▐▌"
+  echo " ▐█▄▪▐█▐█ ▪▐▌▐█▄▪▐█     ▐█▌·▐█▌.▐▌▐█▌██▐█▌██▐█▌"
+  echo " ·▀▀▀▀  ▀  ▀  ▀▀▀▀      ▀▀▀  ▀█▄▀▪ ▀▀▀▀ ▀▪▀▀ █▪"
   echo -e "\${FG}"
-  echo " ╔════════════════════════════════════════════════════════════════╗"
-  echo -e " ║  \${AMBER}\$spin CONVOY DETAILS\${FG}                                             ║"
-  echo " ╠════════════════════════════════════════════════════════════════╣"
-  echo " ║                                                                ║"
-  printf " ║  \${DIM}◈ ID\${FG}        │ %-45s  ║\\n" "\$CONVOY_ID"
-  echo " ║                                                                ║"
-  printf " ║  \${DIM}◈ NAME\${FG}      │ %-45s  ║\\n" "\$CONVOY_NAME"
-  echo " ║                                                                ║"
-  echo -e " ║  \${DIM}◈ STATUS\${FG}    │ \${AMBER}\$STATUS_GLYPH \$STATUS_LABEL    \${FG}[\$PROGRESS_BAR]                  ║"
-  echo " ║                                                                ║"
-  echo -e " ║  \${DIM}◈ ACTIVITY\${FG}  │ \$SPARKLINE                               ║"
-  echo " ║                                                                ║"
-  echo " ╠════════════════════════════════════════════════════════════════╣"
-  echo -e " ║  \${AMBER}◆ ACTIONS\${FG}                                                     ║"
-  echo " ╠════════════════════════════════════════════════════════════════╣"
-  echo " ║                                                                ║"
-  echo " ║   ┌──────────────────────────────────────────────────────┐     ║"
-  echo -e " ║   │  \${AMBER}[s]\${FG} OPEN new terminal & attach convoy          │     ║"
-  echo -e " ║   │  \${AMBER}[C-a]\${FG} Focus process list (mprocs key)         │     ║"
-  echo -e " ║   │  \${AMBER}[q]\${FG} EXIT dashboard (quit mprocs)            │     ║"
-  echo " ║   └──────────────────────────────────────────────────────┘     ║"
-  echo " ║                                                                ║"
-  echo -e " ║   \${AMBER}⚠\${FG}  Press [s] to open convoy in new terminal            ║"
-  echo " ║                                                                ║"
-  echo -e " ╚════════════════════════════════════════════════════════════════╝\${RESET}"
+  echo " ╔══════════════════════════════════════════════════════════════╗"
+  echo -e " ║  \${AMBER}\$spin CONVOY:\${FG} \$CONVOY_NAME"
+  echo " ╠══════════════════════════════════════════════════════════════╣"
+  printf " ║  ID: %-54s  ║\\n" "\$CONVOY_ID"
+  echo -e " ║  STATUS: \${AMBER}${statusGlyph} ${statusLabel}\${FG} [${progressBar}]"
+  echo " ╠══════════════════════════════════════════════════════════════╣"
+  echo -e " ║  \${AMBER}[s]\${FG} START convoy (launch Claude Mayor)                     ║"
+  echo -e " ║  \${AMBER}[a]\${FG} ATTACH to running session                              ║"
+  echo -e " ║  \${DIM}[C-a] Focus process list  [q] Exit\${FG}                         ║"
+  echo " ╠══════════════════════════════════════════════════════════════╣"
+  if tmux has-session -t "\$SESSION_NAME" 2>/dev/null; then
+    echo -e " ║  \${FG}✓ Session ACTIVE - press [a] to attach\${FG}                     ║"
+  else
+    echo -e " ║  \${AMBER}○ Session NOT RUNNING - press [s] to start\${FG}                 ║"
+  fi
+  echo -e " ╚══════════════════════════════════════════════════════════════╝\${RESET}"
 }
 
-# Main loop with keyboard input
-while true; do
-  set_background
-  print_header
-  print_details_panel
-
-  # Advance spinner frame
-  FRAME=$(( (FRAME + 1) % 4 ))
-
-  # Read with timeout - allows animation while waiting for input
-  read -t 1 -n 1 key 2>/dev/null || key=""
-
-  case "\$key" in
-    s|S)
-      echo -e "\\n \${AMBER}▶ Checking convoy status...\${RESET}"
-      SESSION_NAME="gastown-${convoyId}"
-
-      # Check if tmux session already exists
+start_convoy() {
+  echo -e "\\n\${AMBER}▶ Starting convoy...\${RESET}"
+  if ! tmux has-session -t "\$SESSION_NAME" 2>/dev/null; then
+    nohup gastown --resume ${convoyId} </dev/null >/tmp/gastown-\$\$.log 2>&1 &
+    echo -e "\${FG}Waiting for Claude to start...\${RESET}"
+    for i in {1..30}; do
       if tmux has-session -t "\$SESSION_NAME" 2>/dev/null; then
-        echo -e " \${FG}✓ Session exists, opening in new terminal...\${RESET}"
-      else
-        echo -e " \${AMBER}▶ Starting convoy (please wait)...\${RESET}"
-        # Start convoy in background (--no-attach would be ideal, but we redirect)
-        # Use nohup to prevent blocking
-        nohup gastown --resume ${convoyId} </dev/null >/dev/null 2>&1 &
-        GASTOWN_PID=\$!
-
-        # Wait for tmux session to be created (max 10 seconds)
-        for i in {1..20}; do
-          if tmux has-session -t "\$SESSION_NAME" 2>/dev/null; then
-            echo -e " \${FG}✓ Convoy started\${RESET}"
-            break
-          fi
-          sleep 0.5
-        done
-
-        if ! tmux has-session -t "\$SESSION_NAME" 2>/dev/null; then
-          echo -e " \${AMBER}⚠ Convoy may still be starting...\${RESET}"
-        fi
+        echo -e "\${FG}✓ Claude Mayor started!\${RESET}"
+        sleep 1
+        return 0
       fi
+      echo -n "."
+      sleep 0.5
+    done
+    echo -e "\\n\${AMBER}⚠ Timeout. Check /tmp/gastown-\$\$.log\${RESET}"
+    sleep 2
+    return 1
+  fi
+  return 0
+}
 
-      # Open new Terminal window with tmux attach (macOS)
-      if [[ "\$(uname)" == "Darwin" ]]; then
-        osascript -e "tell application \\"Terminal\\" to do script \\"tmux attach -t \$SESSION_NAME || (echo 'Waiting for session...'; sleep 3; tmux attach -t \$SESSION_NAME)\\""
-        osascript -e "tell application \\"Terminal\\" to activate"
-        echo -e " \${FG}✓ New terminal window opened\${RESET}"
-      else
-        # Linux fallback - try common terminal emulators
-        if command -v gnome-terminal &>/dev/null; then
-          gnome-terminal -- bash -c "tmux attach -t \$SESSION_NAME || (echo 'Waiting...'; sleep 3; tmux attach -t \$SESSION_NAME)"
-        elif command -v xterm &>/dev/null; then
-          xterm -e "tmux attach -t \$SESSION_NAME || (sleep 3; tmux attach -t \$SESSION_NAME)" &
-        else
-          echo -e " \${AMBER}⚠ Please run manually: tmux attach -t \$SESSION_NAME\${RESET}"
-        fi
-      fi
-      sleep 2
-      ;;
-    *)
-      # Other keys - just continue the loop (no auto-attach attempt)
-      ;;
+attach_to_session() {
+  if tmux has-session -t "\$SESSION_NAME" 2>/dev/null; then
+    echo -e "\\n\${FG}▶ Attaching to Claude Mayor...\${RESET}"
+    echo -e "\${DIM}(Press Ctrl+b d to detach)\${RESET}"
+    sleep 1
+    tmux attach -t "\$SESSION_NAME"
+    echo -e "\\n\${FG}◇ Detached\${RESET}"
+    sleep 1
+  else
+    echo -e "\\n\${AMBER}⚠ No active session\${RESET}"
+    sleep 2
+  fi
+}
+
+# MAIN LOOP
+while true; do
+  # Auto-attach if session exists
+  if tmux has-session -t "\$SESSION_NAME" 2>/dev/null; then
+    attach_to_session
+    continue
+  fi
+  # Show detail panel
+  show_detail_panel
+  read -t 1 -n 1 key 2>/dev/null || key=""
+  case "\$key" in
+    s|S) start_convoy ;;
+    a|A) attach_to_session ;;
   esac
 done
 `;
