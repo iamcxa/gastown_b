@@ -63,12 +63,14 @@ Deno.test('generateMprocsConfig handles Unicode names', () => {
     { id: 'conv-1', name: '請依據專案最佳實踐實作功能', status: 'running' },
   ];
 
-  const config = generateMprocsConfig(convoys);
+  // With script path, uses script file (Unicode name not in YAML config itself)
+  const scriptPaths = new Map([['conv-1', '/tmp/convoy-conv-1.sh']]);
+  const config = generateMprocsConfig(convoys, undefined, scriptPaths);
 
   // Pane label uses convoy ID (safe for all languages)
   assertStringIncludes(config, '▶ conv-1');
-  // Full name shown in detail output (truncated to fit)
-  assertStringIncludes(config, '請依據專案最佳實踐實作功能'.substring(0, 42));
+  // Shell references script file
+  assertStringIncludes(config, '/tmp/convoy-conv-1.sh');
 });
 
 Deno.test('generateMprocsConfig uses convoy ID as pane label', () => {
@@ -93,11 +95,13 @@ Deno.test('generateMprocsConfig includes convoy status in fallback message', () 
     { id: 'conv-1', name: 'Test', status: 'idle' },
   ];
 
+  // Without script path, uses simple fallback
   const config = generateMprocsConfig(convoys);
 
-  // Fallback message should include status with progress bar
-  assertStringIncludes(config, 'IDLE');
-  assertStringIncludes(config, '███░░'); // Progress bar for idle status (3/5 filled)
+  // Fallback message should include status (simple version without colors)
+  assertStringIncludes(config, 'Status: idle');
+  // Should have tmux attach command
+  assertStringIncludes(config, 'tmux attach -t gastown-conv-1');
 });
 
 Deno.test('generateMprocsConfig includes mprocs configuration options', () => {

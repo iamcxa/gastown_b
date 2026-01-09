@@ -197,13 +197,13 @@ done
 }
 
 /**
- * Generate convoy detail display script with industrial aesthetic.
- * Shows when not attached to tmux session.
+ * Generate convoy detail display script content (written to file).
+ * Uses ANSI colors: Dark olive/green military theme.
  * Provides interactive options:
  * - [s] Start/resume the convoy via gastown
  * - [r] Retry tmux attach (mprocs built-in)
  */
-function generateConvoyDetailScript(convoyId: string, convoyName: string, status: ConvoyStatus): string {
+function generateConvoyScriptContent(convoyId: string, convoyName: string, status: ConvoyStatus): string {
   // Status visualization
   const statusGlyph = status === 'running' ? '▶' : status === 'idle' ? '◇' : '■';
   const statusLabel = status.toUpperCase();
@@ -219,69 +219,107 @@ function generateConvoyDetailScript(convoyId: string, convoyName: string, status
   const safeName = convoyName.replace(/"/g, '\\"').substring(0, 42);
   const safeId = convoyId.substring(0, 20);
 
-  // Interactive script with keyboard input handling
-  // Color scheme: Dark olive/green military theme (contrast with Control Room's navy)
-  const lines = [
-    // ANSI Color setup - Olive/Green military theme
-    'BG=\\"\\\\033[48;5;22m\\"',      // Dark olive green background
-    'FG=\\"\\\\033[38;5;156m\\"',     // Light green foreground
-    'AMBER=\\"\\\\033[38;5;214m\\"',  // Amber/orange accent
-    'DIM=\\"\\\\033[38;5;242m\\"',    // Dim gray
-    'RESET=\\"\\\\033[0m\\"',
-    'SPIN=(◐ ◓ ◑ ◒); F=0',
-    'show_panel() { echo -ne \\"$BG\\"; clear; S=${SPIN[$F]}',
-    'echo -e \\"$BG$AMBER\\"',
-    'echo \\" ║   ▄▄ •  ▄▄▄· .▄▄ ·     ▄▄▄▄▄      ▄▄▌ ▐ ▄▌ ▐ ▄                ║\\"',
-    'echo \\" ║  ▐█ ▀ ▪▐█ ▀█ ▐█ ▀.     •██  ▪     ██· █▌▐█•█▌▐█               ║\\"',
-    'echo \\" ║  ▄█ ▀█▄▄█▀▀█ ▄▀▀▀█▄     ▐█.▪ ▄█▀▄ ██▪▐█▐▐▌▐█▐▐▌               ║\\"',
-    'echo \\" ║  ▐█▄▪▐█▐█ ▪▐▌▐█▄▪▐█     ▐█▌·▐█▌.▐▌▐█▌██▐█▌██▐█▌               ║\\"',
-    'echo \\" ║  ·▀▀▀▀  ▀  ▀  ▀▀▀▀      ▀▀▀  ▀█▄▀▪ ▀▀▀▀ ▀▪▀▀ █▪               ║\\"',
-    'echo -e \\"$FG\\"',
-    'echo \\" ╔════════════════════════════════════════════════════════════════╗\\"',
-    'echo -e \\" ║  $AMBER$S CONVOY DETAILS$FG                                             ║\\"',
-    'echo \\" ╠════════════════════════════════════════════════════════════════╣\\"',
-    'echo \\" ║                                                                ║\\"',
-    `printf \\" ║  $DIM◈ ID$FG        │ %-45s  ║\\\\n\\" \\"${safeId}\\"`,
-    'echo \\" ║                                                                ║\\"',
-    `printf \\" ║  $DIM◈ NAME$FG      │ %-45s  ║\\\\n\\" \\"${safeName}\\"`,
-    'echo \\" ║                                                                ║\\"',
-    `echo -e \\" ║  $DIM◈ STATUS$FG    │ $AMBER${statusGlyph} ${statusLabel.padEnd(10)}$FG [${progressBar}]                  ║\\"`,
-    'echo \\" ║                                                                ║\\"',
-    `echo \\" ║  $DIM◈ ACTIVITY$FG  │ ${sparkline}                               ║\\"`,
-    'echo \\" ║                                                                ║\\"',
-    'echo \\" ╠════════════════════════════════════════════════════════════════╣\\"',
-    'echo -e \\" ║  $AMBER◆ ACTIONS$FG                                                     ║\\"',
-    'echo \\" ╠════════════════════════════════════════════════════════════════╣\\"',
-    'echo \\" ║                                                                ║\\"',
-    'echo \\" ║   ┌──────────────────────────────────────────────────────┐     ║\\"',
-    'echo -e \\" ║   │  $AMBER[s]$FG START / RESUME this convoy                     │     ║\\"',
-    'echo -e \\" ║   │  $AMBER[r]$FG RETRY tmux attach (mprocs reload)              │     ║\\"',
-    'echo -e \\" ║   │  $AMBER[q]$FG BACK to process list                          │     ║\\"',
-    'echo \\" ║   └──────────────────────────────────────────────────────────┘     ║\\"',
-    'echo \\" ║                                                                ║\\"',
-    'echo -e \\" ║   $AMBER⚠$FG  SESSION NOT ATTACHED - Waiting for input...              ║\\"',
-    'echo \\" ║                                                                ║\\"',
-    'echo -e \\" ╚════════════════════════════════════════════════════════════════╝$RESET\\"',
-    'echo \\"\\"',
-    '}',
-    // Main loop with keyboard input
-    'while true; do',
-    'show_panel',
-    'F=$(( (F + 1) % 4 ))',
-    // Read with timeout - allows animation while waiting for input
-    'read -t 1 -n 1 key 2>/dev/null || key=\\"\\"',
-    'case \\"$key\\" in',
-    // [s] Start/resume convoy
-    `s|S) echo \\" ▶ Starting convoy ${safeId}...\\"; gastown --resume ${convoyId} 2>/dev/null; tmux attach -t gastown-${convoyId} 2>/dev/null && exit 0 ;;`,
-    // [a] Also start (alternative key)
-    `a|A) echo \\" ▶ Starting convoy ${safeId}...\\"; gastown --resume ${convoyId} 2>/dev/null; tmux attach -t gastown-${convoyId} 2>/dev/null && exit 0 ;;`,
-    // Any other key - try to attach (maybe session started externally)
-    `*) tmux attach -t gastown-${convoyId} 2>/dev/null && exit 0 ;;`,
-    'esac',
-    'done',
-  ];
+  return `#!/bin/bash
+# ══════════════════════════════════════════════════════════════════════════════
+# GAS TOWN - Convoy Detail Panel
+# Dark Olive/Green Military Theme (contrast with Control Room's navy)
+# ══════════════════════════════════════════════════════════════════════════════
 
-  return lines.join('; ');
+# ANSI Color Codes - Convoy Theme (Olive/Green)
+BG="\\033[48;5;22m"       # Dark olive green background
+FG="\\033[38;5;156m"      # Light green foreground
+AMBER="\\033[38;5;214m"   # Amber/orange accent
+DIM="\\033[38;5;242m"     # Dim gray
+BOLD="\\033[1m"
+RESET="\\033[0m"
+
+# Spinner animation frames
+SPIN=('◐' '◓' '◑' '◒')
+FRAME=0
+
+# Convoy info
+CONVOY_ID="${safeId}"
+CONVOY_NAME="${safeName}"
+STATUS_GLYPH="${statusGlyph}"
+STATUS_LABEL="${statusLabel}"
+PROGRESS_BAR="${progressBar}"
+SPARKLINE="${sparkline}"
+
+set_background() {
+  echo -ne "\${BG}"
+  clear
+}
+
+print_header() {
+  echo -e "\${BG}\${AMBER}"
+  echo " ║   ▄▄ •  ▄▄▄· .▄▄ ·     ▄▄▄▄▄      ▄▄▌ ▐ ▄▌ ▐ ▄                ║"
+  echo " ║  ▐█ ▀ ▪▐█ ▀█ ▐█ ▀.     •██  ▪     ██· █▌▐█•█▌▐█               ║"
+  echo " ║  ▄█ ▀█▄▄█▀▀█ ▄▀▀▀█▄     ▐█.▪ ▄█▀▄ ██▪▐█▐▐▌▐█▐▐▌               ║"
+  echo " ║  ▐█▄▪▐█▐█ ▪▐▌▐█▄▪▐█     ▐█▌·▐█▌.▐▌▐█▌██▐█▌██▐█▌               ║"
+  echo " ║  ·▀▀▀▀  ▀  ▀  ▀▀▀▀      ▀▀▀  ▀█▄▀▪ ▀▀▀▀ ▀▪▀▀ █▪               ║"
+}
+
+print_details_panel() {
+  local spin=\${SPIN[\$FRAME]}
+
+  echo -e "\${FG}"
+  echo " ╔════════════════════════════════════════════════════════════════╗"
+  echo -e " ║  \${AMBER}\$spin CONVOY DETAILS\${FG}                                             ║"
+  echo " ╠════════════════════════════════════════════════════════════════╣"
+  echo " ║                                                                ║"
+  printf " ║  \${DIM}◈ ID\${FG}        │ %-45s  ║\\n" "\$CONVOY_ID"
+  echo " ║                                                                ║"
+  printf " ║  \${DIM}◈ NAME\${FG}      │ %-45s  ║\\n" "\$CONVOY_NAME"
+  echo " ║                                                                ║"
+  echo -e " ║  \${DIM}◈ STATUS\${FG}    │ \${AMBER}\$STATUS_GLYPH \$STATUS_LABEL    \${FG}[\$PROGRESS_BAR]                  ║"
+  echo " ║                                                                ║"
+  echo -e " ║  \${DIM}◈ ACTIVITY\${FG}  │ \$SPARKLINE                               ║"
+  echo " ║                                                                ║"
+  echo " ╠════════════════════════════════════════════════════════════════╣"
+  echo -e " ║  \${AMBER}◆ ACTIONS\${FG}                                                     ║"
+  echo " ╠════════════════════════════════════════════════════════════════╣"
+  echo " ║                                                                ║"
+  echo " ║   ┌──────────────────────────────────────────────────────┐     ║"
+  echo -e " ║   │  \${AMBER}[s]\${FG} START / RESUME this convoy                     │     ║"
+  echo -e " ║   │  \${AMBER}[r]\${FG} RETRY tmux attach (mprocs reload)              │     ║"
+  echo -e " ║   │  \${AMBER}[q]\${FG} BACK to process list                          │     ║"
+  echo " ║   └──────────────────────────────────────────────────────┘     ║"
+  echo " ║                                                                ║"
+  echo -e " ║   \${AMBER}⚠\${FG}  SESSION NOT ATTACHED - Waiting for input...              ║"
+  echo " ║                                                                ║"
+  echo -e " ╚════════════════════════════════════════════════════════════════╝\${RESET}"
+}
+
+# Main loop with keyboard input
+while true; do
+  set_background
+  print_header
+  print_details_panel
+
+  # Advance spinner frame
+  FRAME=$(( (FRAME + 1) % 4 ))
+
+  # Read with timeout - allows animation while waiting for input
+  read -t 1 -n 1 key 2>/dev/null || key=""
+
+  case "\$key" in
+    s|S)
+      echo -e "\\n \${AMBER}▶ Starting convoy ${convoyId}...\${RESET}"
+      gastown --resume ${convoyId} 2>/dev/null
+      tmux attach -t gastown-${convoyId} 2>/dev/null && exit 0
+      ;;
+    a|A)
+      echo -e "\\n \${AMBER}▶ Starting convoy ${convoyId}...\${RESET}"
+      gastown --resume ${convoyId} 2>/dev/null
+      tmux attach -t gastown-${convoyId} 2>/dev/null && exit 0
+      ;;
+    *)
+      # Try to attach (maybe session started externally)
+      tmux attach -t gastown-${convoyId} 2>/dev/null && exit 0
+      ;;
+  esac
+done
+`;
 }
 
 /**
@@ -339,9 +377,14 @@ function generateWelcomeScript(): string {
  *
  * @param convoys - List of convoy info objects
  * @param statusScriptPath - Path to the status script
+ * @param convoyScriptPaths - Map of convoy ID to script path
  * @returns YAML configuration string
  */
-export function generateMprocsConfig(convoys: DashboardConvoyInfo[], statusScriptPath?: string): string {
+export function generateMprocsConfig(
+  convoys: DashboardConvoyInfo[],
+  statusScriptPath?: string,
+  convoyScriptPaths?: Map<string, string>,
+): string {
   const lines: string[] = [];
 
   // YAML header with industrial branding
@@ -401,8 +444,15 @@ export function generateMprocsConfig(convoys: DashboardConvoyInfo[], statusScrip
 
       lines.push('');
       lines.push(`  "${statusGlyph} ${paneLabel}":`);
-      const detailScript = generateConvoyDetailScript(convoy.id, convoy.name, convoy.status);
-      lines.push(`    shell: "tmux attach -t ${sessionName} 2>/dev/null || { ${detailScript} }"`);
+
+      // Use script file if available, otherwise fall back to simple inline
+      const scriptPath = convoyScriptPaths?.get(convoy.id);
+      if (scriptPath) {
+        lines.push(`    shell: "tmux attach -t ${sessionName} 2>/dev/null || bash ${scriptPath}"`);
+      } else {
+        // Simple fallback without colors
+        lines.push(`    shell: "tmux attach -t ${sessionName} 2>/dev/null || bash -c 'while true; do clear; echo \\"Convoy: ${convoy.id}\\"; echo \\"Status: ${convoy.status}\\"; echo; echo \\"Press [s] to start, [r] to retry...\\"; read -t 1 -n 1 key; case \\"\$key\\" in s|S) gastown --resume ${convoy.id} ;; esac; done'"`);
+      }
     }
   } else {
     // Welcome pane when no convoys
@@ -428,13 +478,23 @@ export function generateMprocsConfig(convoys: DashboardConvoyInfo[], statusScrip
 export async function writeMprocsConfig(convoys: DashboardConvoyInfo[]): Promise<string> {
   const tempDir = await Deno.makeTempDir({ prefix: 'gastown-dashboard-' });
 
-  // Write the status script
+  // Write the Control Room status script
   const statusScriptPath = `${tempDir}/control-room.sh`;
   await Deno.writeTextFile(statusScriptPath, generateStatusScriptContent());
   await Deno.chmod(statusScriptPath, 0o755);
 
+  // Write convoy detail scripts
+  const convoyScriptPaths = new Map<string, string>();
+  for (const convoy of convoys) {
+    const scriptPath = `${tempDir}/convoy-${convoy.id}.sh`;
+    const scriptContent = generateConvoyScriptContent(convoy.id, convoy.name, convoy.status);
+    await Deno.writeTextFile(scriptPath, scriptContent);
+    await Deno.chmod(scriptPath, 0o755);
+    convoyScriptPaths.set(convoy.id, scriptPath);
+  }
+
   // Generate and write the mprocs config
-  const config = generateMprocsConfig(convoys, statusScriptPath);
+  const config = generateMprocsConfig(convoys, statusScriptPath, convoyScriptPaths);
   const configPath = `${tempDir}/mprocs.yaml`;
   await Deno.writeTextFile(configPath, config);
 
