@@ -1003,7 +1003,385 @@ priority: P1"
 
 ---
 
-## 9. CLI 與環境變數
+## 9. Event-Driven 架構與 bd Message Bus
+
+本節說明 Paydirt 的核心通訊機制：為何選擇 Event-Driven 架構而非 Claude 內建 Subagent，以及如何使用 bd CLI 作為 Message Bus。
+
+### 9.1 架構選擇：為何不使用 Claude Subagent
+
+Paydirt **不使用** Claude 內建的 Task tool (Subagent)，而是讓每個 Prospect 作為**獨立的 Claude process**，透過 bd CLI 進行通訊。
+
+```
+┌─────────────────────────────────────────────────────────────────────────────┐
+│                 SUBAGENT vs EVENT-DRIVEN COMPARISON                         │
+├─────────────────────────────────────────────────────────────────────────────┤
+│                                                                             │
+│   Claude Subagent (Task tool)          Paydirt Event-Driven                 │
+│   ─────────────────────────            ─────────────────────                │
+│                                                                             │
+│   ┌─────────────────────┐              ┌─────────────────────┐              │
+│   │  Claude Process A   │              │  Claude Process A   │              │
+│   │  ┌───────────────┐  │              │  (Trail Boss)       │              │
+│   │  │ Subagent B    │  │              └──────────┬──────────┘              │
+│   │  │ (child)       │  │                         │                         │
+│   │  └───────────────┘  │              bd comments│(Message Bus)            │
+│   │  ┌───────────────┐  │                         │                         │
+│   │  │ Subagent C    │  │              ┌──────────┴──────────┐              │
+│   │  │ (child)       │  │              │  Claude Process B   │              │
+│   │  └───────────────┘  │              │  (Surveyor)         │              │
+│   └─────────────────────┘              └─────────────────────┘              │
+│                                                                             │
+│   Single API session                   Multiple independent sessions        │
+│   Shared context (200K limit)          Each has own 200K context           │
+│   No persistence                       Git-backed persistence               │
+│   Cannot pause/inspect                 tmux: can attach anytime             │
+│   No respawn on exhaustion             CHECKPOINT → respawn supported       │
+│                                                                             │
+└─────────────────────────────────────────────────────────────────────────────┘
+```
+
+**選擇 Event-Driven 的理由：**
+
+| 考量 | Subagent | Event-Driven | 優勝 |
+|------|----------|--------------|------|
+| **Context 隔離** | 共享 parent context | 各自獨立 200K | Event-Driven |
+| **長任務支援** | Context exhaustion 後無法恢復 | CHECKPOINT + respawn | Event-Driven |
+| **人類介入** | 執行中無法 pause | tmux 隨時 attach | Event-Driven |
+| **持久化** | 無，session 結束即消失 | bd Git-backed | Event-Driven |
+| **可觀測性** | 結果是 text blob | 結構化 bd comments | Event-Driven |
+| **真正並行** | 受限單一 session | 多 tmux panes 並行 | Event-Driven |
+| **成本** | 單一 API call | 多個 API calls | Subagent |
+| **簡單任務** | 適合 | 過於複雜 | Subagent |
+
+**結論**：Paydirt 的目標是長時間、複雜、需要人類介入的多 agent 協作，因此選擇 Event-Driven 架構。
+
+### 9.2 bd CLI 作為 Message Bus
+
+bd CLI 的 `comments` 功能是 Paydirt 的核心通訊機制。
+
+```
+┌─────────────────────────────────────────────────────────────────────────────┐
+│                         BD AS MESSAGE BUS                                   │
+├─────────────────────────────────────────────────────────────────────────────┤
+│                                                                             │
+│   Publisher                    Message Bus                    Subscriber    │
+│   ─────────                    ───────────                    ──────────    │
+│                                                                             │
+│   Trail Boss    ─────────▶    .beads/*.jsonl    ─────────▶    Claim Agent  │
+│   writes:                     (Git-backed)                    polls:        │
+│   QUESTION:                                                   grep QUESTION │
+│                                                                             │
+│   Surveyor      ─────────▶         │            ─────────▶    Trail Boss   │
+│   writes:                          │                          polls:        │
+│   OUTPUT:                          │                          grep OUTPUT   │
+│                                    │                                        │
+│   Miner         ─────────▶         │            ─────────▶    Respawn      │
+│   writes:                          │                          System        │
+│   CHECKPOINT:                      │                          polls:        │
+│                                    │                          grep CHECKPOINT│
+│                                    │                                        │
+│   bd comments add ────────▶   bd comments ────▶   bd comments | grep       │
+│   (publish)                   (storage)           (subscribe)               │
+│                                                                             │
+└─────────────────────────────────────────────────────────────────────────────┘
+```
+
+**Message Bus 特性：**
+
+| 特性 | 說明 |
+|------|------|
+| **持久化** | Git-backed JSONL，可追溯歷史 |
+| **可搜尋** | `bd comments <id> \| grep <prefix>` |
+| **結構化** | JSON 輸出：`bd comments <id> --json` |
+| **非同步** | Publisher 不需等待 Subscriber |
+| **廣播** | 多個 Subscriber 可同時讀取 |
+
+### 9.3 Comment Prefix = Event Type
+
+每個 comment 前綴代表一種 Event Type：
+
+```
+┌─────────────────────────────────────────────────────────────────────────────┐
+│                      COMMENT PREFIX = EVENT TYPE                            │
+├─────────────────────────────────────────────────────────────────────────────┤
+│                                                                             │
+│   PREFIX           │ EVENT TYPE      │ PUBLISHER      │ SUBSCRIBER          │
+│   ─────────────────┼─────────────────┼────────────────┼─────────────────────│
+│   QUESTION:        │ 決策請求        │ Trail Boss     │ Claim Agent         │
+│   ANSWER:          │ 決策回覆        │ Claim Agent    │ Trail Boss          │
+│   OUTPUT:          │ 產出完成        │ Any Prospect   │ Trail Boss          │
+│   PROGRESS:        │ 進度更新        │ Any Prospect   │ Monitor             │
+│   CHECKPOINT:      │ 斷點記錄        │ Any Prospect   │ Respawn System      │
+│   DISCOVERY:       │ 外部發現        │ Scout          │ Camp Boss           │
+│   TASKS:           │ 任務列表        │ Shift Boss     │ Trail Boss          │
+│   REVIEW:          │ 審查結果        │ Assayer        │ Trail Boss          │
+│   TEST-RESULT:     │ 測試結果        │ Canary         │ Trail Boss          │
+│   AUDIT:           │ 審計結果        │ Smelter        │ Trail Boss          │
+│   DECISION:        │ 決策記錄        │ Trail Boss     │ Ledger              │
+│   ESCALATE:        │ 升級人類        │ Claim Agent    │ Human               │
+│                                                                             │
+└─────────────────────────────────────────────────────────────────────────────┘
+```
+
+**範例：**
+
+```bash
+# Trail Boss 發送決策請求
+bd comments add $PAYDIRT_CLAIM "QUESTION [decision]: Which auth provider?
+OPTIONS:
+- Supabase Auth
+- Firebase Auth
+- Custom JWT"
+
+# Claim Agent 回覆
+bd comments add $PAYDIRT_CLAIM "ANSWER [high]: Use Supabase Auth.
+Reasoning: Context file specifies 'Use Supabase ecosystem'."
+
+# Surveyor 完成設計
+bd comments add $PAYDIRT_CLAIM "OUTPUT: design=docs/plans/2026-01-09-auth-design.md"
+
+# Miner 記錄斷點
+bd comments add $PAYDIRT_CLAIM "CHECKPOINT: context=85%
+state: implementing step 4/5
+current-file: src/auth.ts:125
+next-action: Add token validation"
+```
+
+### 9.4 Event Polling 機制
+
+Prospect 透過 polling bd comments 來偵測事件：
+
+```bash
+#!/bin/bash
+# event-polling-example.sh - Trail Boss 等待 Surveyor 完成
+
+CLAIM_ID=$PAYDIRT_CLAIM
+TIMEOUT=300  # 5 minutes
+INTERVAL=5   # Check every 5 seconds
+ELAPSED=0
+
+echo "Waiting for Surveyor OUTPUT..."
+
+while [ $ELAPSED -lt $TIMEOUT ]; do
+  # Poll for OUTPUT event
+  OUTPUT=$(bd comments $CLAIM_ID 2>/dev/null | grep "^OUTPUT:" | tail -1)
+
+  if [ -n "$OUTPUT" ]; then
+    echo "Received: $OUTPUT"
+    # Extract design path
+    DESIGN_PATH=$(echo "$OUTPUT" | sed 's/OUTPUT: design=//')
+    echo "Design document: $DESIGN_PATH"
+    exit 0
+  fi
+
+  sleep $INTERVAL
+  ELAPSED=$((ELAPSED + INTERVAL))
+done
+
+echo "Timeout waiting for OUTPUT"
+exit 1
+```
+
+**Polling 策略：**
+
+| Event Type | Polling 頻率 | Timeout | 處理方式 |
+|------------|-------------|---------|----------|
+| `ANSWER:` | 2-3 秒 | 5 分鐘 | 等待或升級人類 |
+| `OUTPUT:` | 5 秒 | 30 分鐘 | 等待或檢查 stuck |
+| `CHECKPOINT:` | 10 秒 | - | Respawn 系統監控 |
+| `DISCOVERY:` | 60 秒 | - | Camp Boss 定期掃描 |
+
+### 9.5 Claude Hooks 整合
+
+Claude Code Hooks 可自動化事件偵測，取代手動 polling。
+
+**Hook Events 與 Paydirt 整合：**
+
+| Hook Event | Paydirt 用途 |
+|------------|-------------|
+| `SessionStart` | 載入 bd context、讀取 CHECKPOINT |
+| `PostToolUse` | 偵測 bd comments 變化、自動派出 Claim Agent |
+| `PreToolUse` | 存取控制（阻止 Camp Boss 編輯檔案） |
+| `Stop` | 驗證是否真的完成、檢查 pending questions |
+| `PreCompact` | 寫入 CHECKPOINT 到 bd |
+
+**設定範例 (`.claude/settings.json`)：**
+
+```json
+{
+  "hooks": {
+    "SessionStart": [
+      {
+        "matcher": "",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "bd prime"
+          }
+        ]
+      }
+    ],
+    "PostToolUse": [
+      {
+        "matcher": "Bash",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "$CLAUDE_PROJECT_DIR/.paydirt/hooks/question-dispatcher.sh"
+          }
+        ]
+      }
+    ],
+    "PreToolUse": [
+      {
+        "matcher": "Edit|Write",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "[ \"$PAYDIRT_PROSPECT\" = 'camp-boss' ] && echo '{\"hookSpecificOutput\":{\"permissionDecision\":\"deny\",\"permissionDecisionReason\":\"Camp Boss delegates, does not edit\"}}' && exit 0 || exit 0"
+          }
+        ]
+      }
+    ],
+    "PreCompact": [
+      {
+        "matcher": "",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "bd comments add $PAYDIRT_CLAIM \"CHECKPOINT: context=compacting, state=$(bd show $PAYDIRT_CLAIM --json | jq -r .status)\""
+          }
+        ]
+      }
+    ]
+  }
+}
+```
+
+**自動 Question Dispatcher Hook：**
+
+```bash
+#!/bin/bash
+# .paydirt/hooks/question-dispatcher.sh
+# PostToolUse hook: 自動偵測未回答的 QUESTION 並派出 Claim Agent
+
+[ -z "$PAYDIRT_CLAIM" ] && exit 0
+
+# 計算未回答的問題數
+QUESTIONS=$(bd comments $PAYDIRT_CLAIM 2>/dev/null | grep -c "^QUESTION:")
+ANSWERS=$(bd comments $PAYDIRT_CLAIM 2>/dev/null | grep -c "^ANSWER:")
+
+if [ $QUESTIONS -gt $ANSWERS ]; then
+  # 檢查 Claim Agent 是否已在運行
+  CLAIM_AGENT_RUNNING=$(bd list --label paydirt:prospect --assignee claim-agent --status in_progress --brief 2>/dev/null | wc -l)
+
+  if [ "$CLAIM_AGENT_RUNNING" -eq 0 ]; then
+    echo "Detected unanswered questions ($QUESTIONS Q, $ANSWERS A), spawning Claim Agent" >&2
+    $PAYDIRT_BIN prospect claim-agent --background &
+  fi
+fi
+
+exit 0
+```
+
+### 9.6 完整 Event Flow 範例
+
+以下是完整的 event-driven 流程，展示從任務進件到完成的所有事件：
+
+```
+┌─────────────────────────────────────────────────────────────────────────────┐
+│                    COMPLETE EVENT FLOW EXAMPLE                              │
+├─────────────────────────────────────────────────────────────────────────────┤
+│                                                                             │
+│  TIME    │ ACTOR         │ ACTION                │ BD COMMAND               │
+│  ────────┼───────────────┼───────────────────────┼──────────────────────────│
+│  T+0     │ Human         │ pd stake "Auth"       │ bd create --type epic    │
+│  T+1     │ CLI           │ Create Caravan        │ bd update --status open  │
+│  T+2     │ CLI           │ Spawn Trail Boss      │ tmux + claude --agent    │
+│  ────────┼───────────────┼───────────────────────┼──────────────────────────│
+│  T+3     │ Trail Boss    │ Start working         │ bd agent state working   │
+│  T+4     │ Trail Boss    │ Need decision         │ bd comments add          │
+│          │               │                       │ "QUESTION [decision]:    │
+│          │               │                       │ Which auth provider?"    │
+│  ────────┼───────────────┼───────────────────────┼──────────────────────────│
+│  T+5     │ Hook          │ Detect QUESTION       │ (PostToolUse triggered)  │
+│  T+6     │ Hook          │ Spawn Claim Agent     │ pd prospect claim-agent  │
+│  T+7     │ Claim Agent   │ Read context file     │ cat $PAYDIRT_TUNNEL      │
+│  T+8     │ Claim Agent   │ Answer question       │ bd comments add          │
+│          │               │                       │ "ANSWER [high]: Supabase"│
+│  T+9     │ Claim Agent   │ Exit                  │ (process ends)           │
+│  ────────┼───────────────┼───────────────────────┼──────────────────────────│
+│  T+10    │ Trail Boss    │ Poll sees ANSWER      │ bd comments | grep ANSWER│
+│  T+11    │ Trail Boss    │ Spawn Surveyor        │ pd prospect surveyor     │
+│  T+12    │ Surveyor      │ Start design          │ bd agent state working   │
+│  T+13    │ Surveyor      │ Use brainstorming     │ Skill(brainstorming)     │
+│  T+14    │ Surveyor      │ Write plan            │ Write to docs/plans/     │
+│  T+15    │ Surveyor      │ Report output         │ bd comments add          │
+│          │               │                       │ "OUTPUT: design=..."     │
+│  T+16    │ Surveyor      │ Done                  │ bd agent state done      │
+│  ────────┼───────────────┼───────────────────────┼──────────────────────────│
+│  T+17    │ Trail Boss    │ Poll sees OUTPUT      │ bd comments | grep OUTPUT│
+│  T+18    │ Trail Boss    │ Spawn Shift Boss      │ pd prospect shift-boss   │
+│  T+19    │ Shift Boss    │ Create tasks          │ bd create (multiple)     │
+│  T+20    │ Shift Boss    │ Report tasks          │ bd comments add          │
+│          │               │                       │ "TASKS: [pd-001,...]"    │
+│  ────────┼───────────────┼───────────────────────┼──────────────────────────│
+│  T+21    │ Trail Boss    │ Poll sees TASKS       │ bd comments | grep TASKS │
+│  T+22    │ Trail Boss    │ Spawn Miners (//l)    │ pd prospect miner (x3)   │
+│  T+23-99 │ Miners        │ Implement + TDD       │ bd comments add PROGRESS │
+│  ────────┼───────────────┼───────────────────────┼──────────────────────────│
+│  T+100   │ Miner #1      │ Context 85%           │ bd comments add          │
+│          │               │                       │ "CHECKPOINT: context=85%"│
+│  T+101   │ Miner #1      │ Mark stuck            │ bd agent state stuck     │
+│  T+102   │ Respawn       │ Detect stuck          │ (monitoring system)      │
+│  T+103   │ Respawn       │ Spawn new Miner       │ pd prospect miner        │
+│          │               │                       │ --checkpoint             │
+│  ────────┼───────────────┼───────────────────────┼──────────────────────────│
+│  T+150   │ All Miners    │ Complete              │ bd agent state done      │
+│  T+151   │ Trail Boss    │ Update status         │ bd update                │
+│          │               │                       │ --status ready-for-review│
+│  T+152   │ Trail Boss    │ Spawn Assayer         │ pd prospect assayer      │
+│  T+153   │ Assayer       │ Review code           │ Skill(code-review)       │
+│  T+154   │ Assayer       │ Report result         │ bd comments add          │
+│          │               │                       │ "REVIEW: APPROVED"       │
+│  ────────┼───────────────┼───────────────────────┼──────────────────────────│
+│  T+155   │ Trail Boss    │ Create PR             │ gh pr create             │
+│  T+156   │ Trail Boss    │ Report PR             │ bd comments add          │
+│          │               │                       │ "PR_CREATED: #123"       │
+│  T+157   │ Trail Boss    │ Mark delivered        │ bd update                │
+│          │               │                       │ --status delivered       │
+│  T+158   │ Trail Boss    │ Notify Camp Boss      │ bd comments add $JOURNAL │
+│          │               │                       │ "OBSERVATION: delivered" │
+│                                                                             │
+└─────────────────────────────────────────────────────────────────────────────┘
+```
+
+### 9.7 Event-Driven 最佳實踐
+
+**Publisher 規則：**
+
+1. 使用標準前綴（QUESTION:, OUTPUT:, PROGRESS: 等）
+2. 寫入後立即可被讀取（bd 是同步的）
+3. 包含足夠 context 讓 subscriber 可以行動
+4. 長內容使用多行格式
+
+**Subscriber 規則：**
+
+1. 使用 `grep` 過濾特定 prefix
+2. 使用 `tail -1` 取最新事件（如適用）
+3. 處理後考慮是否需要 ACK（寫入回應）
+4. 設定合理 timeout 避免無限等待
+
+**Hook 規則：**
+
+1. Hook 應該快速執行（< 1 秒）
+2. 長操作使用 `&` 背景執行
+3. 檢查環境變數避免在錯誤 context 執行
+4. 使用 exit 0 表示成功（不阻止操作）
+
+---
+
+## 10. CLI 與環境變數
 
 ### CLI 命令設計
 
