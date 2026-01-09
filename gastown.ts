@@ -24,6 +24,7 @@ import {
   initConfig,
 } from './src/cli/commands.ts';
 import { spawnAgent } from './src/spawn/mod.ts';
+import { checkForReadyWork, triggerWork } from './src/gupp/mod.ts';
 import type { RoleName } from './src/types.ts';
 
 const VERSION = '0.1.0';
@@ -42,6 +43,7 @@ USAGE:
   gastown stop [--archive]          Stop all convoys
   gastown init                      Initialize gastown in project
   gastown spawn <role> --task "..."   Spawn agent in current convoy
+  gastown gupp check [--dry-run]    Check for ready work and trigger spawning
 
 OPTIONS:
   --max-workers <n>    Maximum parallel workers (default: 3)
@@ -54,6 +56,9 @@ SPAWN OPTIONS:
   --task "<desc>"      Task description for the agent (required for spawn)
   --convoy <id>        Override convoy ID (default: $GASTOWN_BD)
   --convoy-name <n>    Override convoy name (default: $GASTOWN_CONVOY)
+
+GUPP OPTIONS:
+  --dry-run            Show what would be done without taking action
 
 SPAWN ROLES:
   planner    Design and architecture
@@ -97,7 +102,7 @@ EXAMPLES:
 async function main(): Promise<void> {
   const args = parseArgs(Deno.args, {
     string: ['resume', 'status', 'max-workers', 'context', 'task', 'convoy', 'convoy-name'],
-    boolean: ['help', 'version', 'archive', 'prime'],
+    boolean: ['help', 'version', 'archive', 'prime', 'dry-run'],
     alias: {
       h: 'help',
       v: 'version',
@@ -165,6 +170,53 @@ async function main(): Promise<void> {
       console.log(`  Pane: ${result.paneIndex}`);
     } catch (error) {
       console.error(`Failed to spawn ${role}:`, (error as Error).message);
+      Deno.exit(1);
+    }
+    return;
+  }
+
+  if (command === 'gupp') {
+    const subcommand = rest[0]?.toString();
+
+    if (subcommand !== 'check') {
+      console.error('Usage: gastown gupp check [--dry-run]');
+      Deno.exit(1);
+    }
+
+    try {
+      const checkResult = await checkForReadyWork(args.convoy);
+
+      if (args['dry-run']) {
+        console.log('GUPP Check Results (dry-run):');
+        console.log(`  Convoy ID: ${checkResult.convoyId || 'none'}`);
+        console.log(`  Convoy: ${checkResult.convoy?.title || 'not found'}`);
+        console.log(`  Has Work: ${checkResult.hasWork}`);
+        console.log(`  Ready Tasks: ${checkResult.readyTasks.length}`);
+        checkResult.readyTasks.forEach((t) => {
+          console.log(`    - ${t.id}: ${t.title}`);
+        });
+        console.log(`  All Tasks Done: ${checkResult.allTasksDone}`);
+        console.log(`  Idle Worker Slots: ${checkResult.idleWorkerSlots}`);
+        console.log(`  Active Agents: ${checkResult.agents.length}`);
+        checkResult.agents.forEach((a) => {
+          console.log(`    - ${a.id}: ${a.role} (${a.state})`);
+        });
+
+        // Show what would be triggered
+        const triggerResult = await triggerWork(checkResult, true);
+        console.log(`\n  Would trigger: ${triggerResult.message}`);
+      } else {
+        const triggerResult = await triggerWork(checkResult, false);
+
+        if (triggerResult.triggered) {
+          console.log(`[GUPP] ${triggerResult.message}`);
+        } else if (checkResult.convoyId) {
+          console.log(`[GUPP] No action: ${triggerResult.message}`);
+        }
+        // Silent exit if no convoy context (typical for non-convoy environments)
+      }
+    } catch (error) {
+      console.error('GUPP check failed:', (error as Error).message);
       Deno.exit(1);
     }
     return;

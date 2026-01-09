@@ -1,0 +1,23 @@
+# GUPP Hook - Gastown Universal Propulsion Principle
+# "If there is work on your hook, YOU MUST RUN IT"
+#
+# This hook triggers automatic worker spawning when beads state changes:
+# - New tasks are created (mcp__beads__create)
+# - Task status changes (mcp__beads__update)
+# - Tasks are completed (mcp__beads__close)
+#
+# The hook only runs when GASTOWN_BD is set, indicating we're in a convoy context.
+
+hooks:
+  - event: PostToolUse
+    matcher:
+      tool_name:
+        - mcp__beads__create
+        - mcp__beads__update
+        - mcp__beads__close
+    condition: "env.GASTOWN_BD != ''"
+    action:
+      type: command
+      command: "${GASTOWN_BIN:-gastown} gupp check"
+      silent: true
+      background: true
