@@ -196,6 +196,32 @@ print_convoy_panel() {
   echo -e " ╚══════════════════════════════════════════════════════════════════════╝"
 }
 
+print_commander_status() {
+  echo ""
+  echo -e "\${FG} ╔══════════════════════════════════════════════════════════════════════╗"
+  echo -e " ║  \${GOLD}◆ COMMANDER STATUS\${FG}                                                   ║"
+  echo -e " ╠══════════════════════════════════════════════════════════════════════╣"
+
+  # Try to find Commander Journal
+  local journal_id=\$(bd list --label gt:commander --limit 1 --brief 2>/dev/null | head -1 | awk '{print \$1}')
+
+  if [ -n "\$journal_id" ]; then
+    # Get latest comment (last activity)
+    local last_activity=\$(bd comments "\$journal_id" --limit 1 2>/dev/null | head -1 | cut -c1-60)
+    if [ -n "\$last_activity" ]; then
+      printf " ║  Last: %-62s ║\\n" "\$last_activity"
+    else
+      echo -e " ║  \${DIM}No recent activity\${FG}                                                   ║"
+    fi
+    printf " ║  \${DIM}Journal: %-61s\${FG}║\\n" "\$journal_id"
+  else
+    echo -e " ║  \${DIM}Commander Journal not found\${FG}                                          ║"
+    echo -e " ║  \${DIM}Create with: bd create --type epic --labels gt:commander\${FG}             ║"
+  fi
+
+  echo -e " ╚══════════════════════════════════════════════════════════════════════╝"
+}
+
 print_controls_panel() {
   echo ""
   echo -e "\${FG} ╔══════════════════════════════════════════════════════════════════════╗"
@@ -217,6 +243,7 @@ while true; do
   print_system_panel
   print_convoy_stats
   print_convoy_panel
+  print_commander_status
   print_controls_panel
 
   # Advance spinner frame
