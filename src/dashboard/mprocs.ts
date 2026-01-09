@@ -183,6 +183,9 @@ done
 /**
  * Generate convoy detail display script with industrial aesthetic.
  * Shows when not attached to tmux session.
+ * Provides interactive options:
+ * - [s] Start/resume the convoy via gastown
+ * - [r] Retry tmux attach (mprocs built-in)
  */
 function generateConvoyDetailScript(convoyId: string, convoyName: string, status: ConvoyStatus): string {
   // Status visualization
@@ -200,8 +203,10 @@ function generateConvoyDetailScript(convoyId: string, convoyName: string, status
   const safeName = convoyName.replace(/"/g, '\\"').substring(0, 42);
   const safeId = convoyId.substring(0, 20);
 
+  // Interactive script with keyboard input handling
   const lines = [
-    'SPIN=(◐ ◓ ◑ ◒); F=0; while true; do clear; S=${SPIN[$F]}',
+    'SPIN=(◐ ◓ ◑ ◒); F=0',
+    'show_panel() { clear; S=${SPIN[$F]}',
     'echo \\"\\"',
     'echo \\" ╔════════════════════════════════════════════════════════════════╗\\"',
     'echo \\" ║                                                                ║\\"',
@@ -224,17 +229,34 @@ function generateConvoyDetailScript(convoyId: string, convoyName: string, status
     `echo \\" ║  ◈ ACTIVITY  │ ${sparkline}                               ║\\"`,
     'echo \\" ║                                                                ║\\"',
     'echo \\" ╠════════════════════════════════════════════════════════════════╣\\"',
+    'echo \\" ║  ◆ ACTIONS                                                     ║\\"',
+    'echo \\" ╠════════════════════════════════════════════════════════════════╣\\"',
     'echo \\" ║                                                                ║\\"',
     'echo \\" ║   ┌──────────────────────────────────────────────────────┐     ║\\"',
-    'echo \\" ║   │  ⚠  SESSION NOT ATTACHED                            │     ║\\"',
-    'echo \\" ║   │     Attempting reconnection in 3 seconds...         │     ║\\"',
-    'echo \\" ║   │     Press [r] to retry immediately                  │     ║\\"',
+    'echo \\" ║   │  [s] START / RESUME this convoy                     │     ║\\"',
+    'echo \\" ║   │  [r] RETRY tmux attach (mprocs reload)              │     ║\\"',
+    'echo \\" ║   │  [q] BACK to process list                          │     ║\\"',
     'echo \\" ║   └──────────────────────────────────────────────────────┘     ║\\"',
+    'echo \\" ║                                                                ║\\"',
+    'echo \\" ║   ⚠  SESSION NOT ATTACHED - Waiting for input...              ║\\"',
     'echo \\" ║                                                                ║\\"',
     'echo \\" ╚════════════════════════════════════════════════════════════════╝\\"',
     'echo \\"\\"',
-    'F=$(( (F + 1) % 4 )); sleep 3',
-    `tmux attach -t gastown-${convoyId} 2>/dev/null && exit 0`,
+    '}',
+    // Main loop with keyboard input
+    'while true; do',
+    'show_panel',
+    'F=$(( (F + 1) % 4 ))',
+    // Read with timeout - allows animation while waiting for input
+    'read -t 1 -n 1 key 2>/dev/null || key=\\"\\"',
+    'case \\"$key\\" in',
+    // [s] Start/resume convoy
+    `s|S) echo \\" ▶ Starting convoy ${safeId}...\\"; gastown --resume ${convoyId} 2>/dev/null; tmux attach -t gastown-${convoyId} 2>/dev/null && exit 0 ;;`,
+    // [a] Also start (alternative key)
+    `a|A) echo \\" ▶ Starting convoy ${safeId}...\\"; gastown --resume ${convoyId} 2>/dev/null; tmux attach -t gastown-${convoyId} 2>/dev/null && exit 0 ;;`,
+    // Any other key - try to attach (maybe session started externally)
+    `*) tmux attach -t gastown-${convoyId} 2>/dev/null && exit 0 ;;`,
+    'esac',
     'done',
   ];
 
