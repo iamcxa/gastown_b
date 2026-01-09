@@ -143,6 +143,26 @@ print_system_panel() {
   echo -e " ╚══════════════════════════════════════════════════════════════════════╝"
 }
 
+print_convoy_stats() {
+  # Count convoys by status using bd CLI
+  local active=0
+  local idle=0
+
+  if command -v bd &> /dev/null; then
+    active=\$(bd list --label gt:convoy --status in_progress --brief 2>/dev/null | wc -l | tr -d ' ')
+    idle=\$(bd list --label gt:convoy --status open --brief 2>/dev/null | wc -l | tr -d ' ')
+  fi
+
+  local total=\$((active + idle))
+
+  echo ""
+  echo -e "\${FG} ╔══════════════════════════════════════════════════════════════════════╗"
+  echo -e " ║  \${GOLD}◈ CONVOY STATUS\${FG}                                                      ║"
+  echo -e " ╠══════════════════════════════════════════════════════════════════════╣"
+  printf " ║  Active: \${GOLD}%-4s\${FG} │  Idle: \${DIM}%-4s\${FG} │  Total: %-4s                       ║\\n" "\$active" "\$idle" "\$total"
+  echo -e " ╚══════════════════════════════════════════════════════════════════════╝"
+}
+
 print_convoy_panel() {
   echo ""
   echo -e "\${FG} ╔══════════════════════════════════════════════════════════════════════╗"
@@ -185,6 +205,7 @@ while true; do
   set_background
   print_header
   print_system_panel
+  print_convoy_stats
   print_convoy_panel
   print_controls_panel
 
