@@ -20,8 +20,8 @@ Deno.test('generateMprocsConfig creates valid YAML structure', () => {
   assertStringIncludes(config, 'bash -c'); // Cross-platform loop instead of watch
   assertStringIncludes(config, 'gastown --status');
 
-  // Should have convoy pane with status icon (name includes ID suffix for uniqueness)
-  assertStringIncludes(config, '🟢 Test-Convoy--001'); // 🟢 = running, -001 is ID suffix
+  // Should have convoy pane with status icon (pane label is convoy ID)
+  assertStringIncludes(config, '🟢 convoy-001'); // 🟢 = running
   assertStringIncludes(config, 'tmux attach -t');
   assertStringIncludes(config, 'gastown-convoy-001');
 });
@@ -35,10 +35,10 @@ Deno.test('generateMprocsConfig handles multiple convoys', () => {
 
   const config = generateMprocsConfig(convoys);
 
-  // Should have all convoy panes with status icons (names include ID suffix)
-  assertStringIncludes(config, '🟢 First-nv-1'); // running
-  assertStringIncludes(config, '🟡 Second-nv-2'); // idle
-  assertStringIncludes(config, '🔴 Third-nv-3'); // stopped
+  // Should have all convoy panes with status icons (pane label is convoy ID)
+  assertStringIncludes(config, '🟢 conv-1'); // running
+  assertStringIncludes(config, '🟡 conv-2'); // idle
+  assertStringIncludes(config, '🔴 conv-3'); // stopped
 
   // Each should have tmux attach command
   assertStringIncludes(config, 'gastown-conv-1');
@@ -59,36 +59,34 @@ Deno.test('generateMprocsConfig handles empty convoy list', () => {
   assertStringIncludes(config, 'No active convoys');
 });
 
-Deno.test('generateMprocsConfig sanitizes convoy names', () => {
+Deno.test('generateMprocsConfig handles Unicode names', () => {
   const convoys: DashboardConvoyInfo[] = [
-    { id: 'conv-1', name: 'Has Spaces & Special!', status: 'running' },
+    { id: 'conv-1', name: '請依據專案最佳實踐實作功能', status: 'running' },
   ];
 
   const config = generateMprocsConfig(convoys);
 
-  // Name should be sanitized (no spaces/special chars) with status icon and ID suffix
-  // "Has Spaces & Special!" -> "Has-Spaces---Speci" (18 chars) + "-nv-1" (ID suffix)
-  assertStringIncludes(config, '🟢 Has-Spaces---Speci-nv-1');
+  // Pane label uses convoy ID (safe for all languages)
+  assertStringIncludes(config, '🟢 conv-1');
+  // Full name shown in fallback message
+  assertStringIncludes(config, '請依據專案最佳實踐實作功能');
 });
 
-Deno.test('generateMprocsConfig truncates long names', () => {
+Deno.test('generateMprocsConfig uses convoy ID as pane label', () => {
   const convoys: DashboardConvoyInfo[] = [
     {
-      id: 'conv-1',
-      name: 'This is a very long convoy name that should be truncated to fit',
+      id: 'my-convoy-abc123',
+      name: 'This is a very long convoy name that would be truncated',
       status: 'running',
     },
   ];
 
   const config = generateMprocsConfig(convoys);
 
-  // Name is truncated to 18 chars then ID suffix added
-  // Full pane label format: "{truncated-name}-{last-4-of-id}"
-  const lines = config.split('\n');
-  const convoyLine = lines.find((l) => l.includes('This-is-a-very-lon'));
-  assertEquals(convoyLine !== undefined, true);
-  // Should have ID suffix
-  assertStringIncludes(config, 'nv-1');
+  // Pane label is the convoy ID directly
+  assertStringIncludes(config, '🟢 my-convoy-abc123');
+  // Session name includes gastown prefix
+  assertStringIncludes(config, 'gastown-my-convoy-abc123');
 });
 
 Deno.test('generateMprocsConfig includes convoy status in fallback message', () => {

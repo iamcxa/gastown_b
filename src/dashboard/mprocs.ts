@@ -77,17 +77,17 @@ export function generateMprocsConfig(convoys: DashboardConvoyInfo[]): string {
   lines.push(`    shell: "${buildStatusScript().replace(/"/g, '\\"')}"`);
 
   // Add a pane for each convoy with status indicator
-  // Use convoy ID in pane name to ensure uniqueness
+  // Use convoy ID as pane name (names may be in any language)
   for (const convoy of convoys) {
     const sessionName = `gastown-${convoy.id}`;
-    const safeName = convoy.name.replace(/[^a-zA-Z0-9-_]/g, '-').substring(0, 18);
     const statusIcon = convoy.status === 'running' ? '🟢' : convoy.status === 'idle' ? '🟡' : '🔴';
-    // Include ID suffix to avoid duplicate pane names
-    const paneLabel = `${safeName}-${convoy.id.slice(-4)}`;
+    // Use convoy ID directly - it's always unique and ASCII-safe
+    // Full name shown in terminal output when not attached
+    const paneLabel = convoy.id;
 
     lines.push(`  "${statusIcon} ${paneLabel}":`);
     lines.push(
-      `    shell: "tmux attach -t ${sessionName} 2>/dev/null || echo 'Session: ${sessionName}'; echo 'Status: ${convoy.status}'; echo 'Not attached. Press r to retry.'"`,
+      `    shell: "tmux attach -t ${sessionName} 2>/dev/null || echo 'Convoy: ${convoy.id}'; echo 'Name: ${convoy.name.replace(/'/g, "\\'")}'; echo 'Status: ${convoy.status}'; echo; echo 'Not attached. Press r to retry.'"`,
     );
   }
 
