@@ -101,6 +101,9 @@ DIM="\\033[38;5;244m"     # Dim gray
 BOLD="\\033[1m"
 RESET="\\033[0m"
 
+# Session start time for runtime calculation
+SESSION_START=\$(date +%s)
+
 # Spinner animation frames
 SPIN=('◐' '◓' '◑' '◒')
 FRAME=0
@@ -129,7 +132,14 @@ print_header() {
 print_system_panel() {
   local spin=\${SPIN[\$FRAME]}
   local time=\$(date '+%Y-%m-%d %H:%M:%S')
-  local uptime_str=\$(uptime | sed 's/.*up //' | sed 's/,.*//')
+
+  # Calculate session runtime
+  local now=\$(date +%s)
+  local elapsed=\$((now - SESSION_START))
+  local hours=\$((elapsed / 3600))
+  local mins=\$(( (elapsed % 3600) / 60 ))
+  local secs=\$((elapsed % 60))
+  local runtime_str=\$(printf "%02d:%02d:%02d" \$hours \$mins \$secs)
 
   echo ""
   echo -e "\${FG} ╔══════════════════════════════════════════════════════════════════════╗"
@@ -137,7 +147,7 @@ print_system_panel() {
   echo -e " ╠══════════════════════════════════════════════════════════════════════╣"
   echo -e " ║                                                                      ║"
   printf " ║  \${DIM}◈ TIMESTAMP    │\${RESET}\${BG}\${FG} %-40s\${FG}         ║\\n" "\$time"
-  printf " ║  \${DIM}◈ UPTIME       │\${RESET}\${BG}\${FG} %-40s\${FG}         ║\\n" "\$uptime_str"
+  printf " ║  \${DIM}◈ RUNTIME      │\${RESET}\${BG}\${FG} %-40s\${FG}         ║\\n" "\$runtime_str"
   printf " ║  \${DIM}◈ PLATFORM     │\${RESET}\${BG}\${FG} %-40s\${FG}         ║\\n" "\$(uname -s) \$(uname -m)"
   echo -e " ║                                                                      ║"
   echo -e " ╚══════════════════════════════════════════════════════════════════════╝"
