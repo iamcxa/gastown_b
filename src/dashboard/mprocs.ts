@@ -25,18 +25,8 @@ export interface DashboardConvoyInfo {
   status: ConvoyStatus;
 }
 
-/**
- * ANSI color codes for terminal output.
- */
-const COLORS = {
-  reset: '\\033[0m',
-  bold: '\\033[1m',
-  yellow: '\\033[33m',
-  green: '\\033[32m',
-  red: '\\033[31m',
-  cyan: '\\033[36m',
-  dim: '\\033[2m',
-};
+// Note: ANSI codes removed - mprocs has issues with escape sequences in YAML
+// The status icons (🟢🟡🔴) provide visual distinction instead
 
 /**
  * Escape a string for safe use in YAML.
@@ -55,18 +45,9 @@ function yamlEscape(str: string): string {
  * Uses a bash while loop instead of `watch` for cross-platform compatibility.
  */
 function buildStatusScript(): string {
-  // Gastown ASCII banner with colors
-  const banner = `echo -e "${COLORS.bold}${COLORS.yellow}`;
-  const bannerArt = `
-   ╔═══════════════════════════════════════╗
-   ║     ⛽  G A S   T O W N  ⛽          ║
-   ║         Dashboard v1.0                ║
-   ╚═══════════════════════════════════════╝
-${COLORS.reset}"`;
-
-  // Build a cross-platform status refresh loop
-  // Uses bash while loop instead of watch (not available on macOS by default)
-  return `bash -c 'while true; do clear; ${banner}${bannerArt}; echo -e "${COLORS.cyan}Last updated: $(date +%H:%M:%S)${COLORS.reset}"; echo; gastown --status 2>/dev/null || echo -e "${COLORS.dim}No status available${COLORS.reset}"; sleep 2; done'`;
+  // Simple cross-platform status refresh loop
+  // Avoids ANSI escape codes which cause issues in mprocs YAML
+  return `bash -c 'while true; do clear; echo "=== Gas Town Dashboard ==="; echo; date "+Last updated: %H:%M:%S"; echo; gastown --status 2>/dev/null || echo "No status available"; sleep 2; done'`;
 }
 
 /**
@@ -96,15 +77,17 @@ export function generateMprocsConfig(convoys: DashboardConvoyInfo[]): string {
   lines.push(`    shell: "${buildStatusScript().replace(/"/g, '\\"')}"`);
 
   // Add a pane for each convoy with status indicator
+  // Use convoy ID in pane name to ensure uniqueness
   for (const convoy of convoys) {
     const sessionName = `gastown-${convoy.id}`;
-    const safeName = convoy.name.replace(/[^a-zA-Z0-9-_]/g, '-').substring(0, 25);
+    const safeName = convoy.name.replace(/[^a-zA-Z0-9-_]/g, '-').substring(0, 18);
     const statusIcon = convoy.status === 'running' ? '🟢' : convoy.status === 'idle' ? '🟡' : '🔴';
-    const statusColor = convoy.status === 'running' ? COLORS.green : convoy.status === 'idle' ? COLORS.yellow : COLORS.red;
+    // Include ID suffix to avoid duplicate pane names
+    const paneLabel = `${safeName}-${convoy.id.slice(-4)}`;
 
-    lines.push(`  "${statusIcon} ${safeName}":`);
+    lines.push(`  "${statusIcon} ${paneLabel}":`);
     lines.push(
-      `    shell: "tmux attach -t ${yamlEscape(sessionName)} 2>/dev/null || echo -e \\"${statusColor}${COLORS.bold}Session: ${sessionName}${COLORS.reset}\\\\n${COLORS.dim}Status: ${convoy.status}\\\\nNot attached. Press 'r' to retry.${COLORS.reset}\\""`,
+      `    shell: "tmux attach -t ${sessionName} 2>/dev/null || echo 'Session: ${sessionName}'; echo 'Status: ${convoy.status}'; echo 'Not attached. Press r to retry.'"`,
     );
   }
 
@@ -112,7 +95,7 @@ export function generateMprocsConfig(convoys: DashboardConvoyInfo[]): string {
   if (convoys.length === 0) {
     lines.push('  "📋 Welcome":');
     lines.push(
-      `    shell: "echo -e \\"${COLORS.yellow}${COLORS.bold}Welcome to Gas Town!${COLORS.reset}\\\\n\\\\n${COLORS.cyan}No active convoys found.${COLORS.reset}\\\\n\\\\nStart a new convoy with:\\\\n  ${COLORS.green}gastown \\\\\\"Your task description\\\\\\"${COLORS.reset}\\\\n\\\\nOr resume an existing one:\\\\n  ${COLORS.green}gastown --resume <convoy-id>${COLORS.reset}\\""`,
+      `    shell: "echo 'Welcome to Gas Town!'; echo; echo 'No active convoys found.'; echo; echo 'Start a new convoy with:'; echo '  gastown \"Your task description\"'; echo; echo 'Or resume an existing one:'; echo '  gastown --resume <convoy-id>'"`,
     );
   }
 
