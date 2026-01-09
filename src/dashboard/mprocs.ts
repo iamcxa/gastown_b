@@ -83,7 +83,11 @@ function generateConvoyDetailScript(convoyId: string, convoyName: string, status
   // Escape single quotes in convoy name for shell
   const safeName = convoyName.replace(/'/g, "'\\''");
 
-  return `echo '╔═══════════════════════════════════════════════════════╗'
+  // Loop with periodic retry - stays alive so mprocs shows UP status
+  // Auto-retries tmux attach every 3 seconds
+  return `while true; do
+clear
+echo '╔═══════════════════════════════════════════════════════╗'
 echo '║  ⛽ CONVOY DETAILS                                     ║'
 echo '╠═══════════════════════════════════════════════════════╣'
 echo '║                                                       ║'
@@ -97,8 +101,11 @@ echo '║  STATUS: ${statusSymbol} ${status.toUpperCase().padEnd(10)} [${statusB
 echo '║                                                       ║'
 echo '╠═══════════════════════════════════════════════════════╣'
 echo '║  ⚠  SESSION NOT ATTACHED                              ║'
-echo '║     Press [r] to retry connection                     ║'
-echo '╚═══════════════════════════════════════════════════════╝'`;
+echo '║     Retrying in 3s... (Press [r] to retry now)        ║'
+echo '╚═══════════════════════════════════════════════════════╝'
+sleep 3
+tmux attach -t gastown-${convoyId} 2>/dev/null && exit 0
+done`;
 }
 
 /**
