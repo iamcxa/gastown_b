@@ -204,8 +204,13 @@ done
  * - If tmux session exists: attach directly (show Claude Code in mprocs pane)
  * - If tmux session doesn't exist: show detail panel with [s] to start
  * - After detach (Ctrl+b d): return to detail panel
+ *
+ * @param convoyId - Convoy ID
+ * @param convoyName - Convoy display name
+ * @param status - Convoy status
+ * @param gastownPath - Full path to gastown binary
  */
-function generateConvoyScriptContent(convoyId: string, convoyName: string, status: ConvoyStatus): string {
+function generateConvoyScriptContent(convoyId: string, convoyName: string, status: ConvoyStatus, gastownPath: string): string {
   const statusGlyph = status === 'running' ? '▶' : status === 'idle' ? '◇' : '■';
   const statusLabel = status.toUpperCase();
   const progressFill = status === 'running' ? 5 : status === 'idle' ? 3 : 0;
@@ -263,7 +268,7 @@ show_detail_panel() {
 start_convoy() {
   echo -e "\\n\${AMBER}▶ Starting convoy...\${RESET}"
   if ! tmux has-session -t "\$SESSION_NAME" 2>/dev/null; then
-    nohup gastown --resume ${convoyId} </dev/null >/tmp/gastown-\$\$.log 2>&1 &
+    nohup "${gastownPath}" --resume ${convoyId} </dev/null >/tmp/gastown-\$\$.log 2>&1 &
     echo -e "\${FG}Waiting for Claude to start...\${RESET}"
     for i in {1..30}; do
       if tmux has-session -t "\$SESSION_NAME" 2>/dev/null; then
@@ -468,9 +473,10 @@ export function generateMprocsConfig(
  * Write mprocs configuration and supporting scripts to temp directory.
  *
  * @param convoys - List of convoy info objects
+ * @param gastownPath - Full path to gastown binary
  * @returns Path to the created config file
  */
-export async function writeMprocsConfig(convoys: DashboardConvoyInfo[]): Promise<string> {
+export async function writeMprocsConfig(convoys: DashboardConvoyInfo[], gastownPath: string): Promise<string> {
   const tempDir = await Deno.makeTempDir({ prefix: 'gastown-dashboard-' });
 
   // Write the Control Room status script
@@ -482,7 +488,7 @@ export async function writeMprocsConfig(convoys: DashboardConvoyInfo[]): Promise
   const convoyScriptPaths = new Map<string, string>();
   for (const convoy of convoys) {
     const scriptPath = `${tempDir}/convoy-${convoy.id}.sh`;
-    const scriptContent = generateConvoyScriptContent(convoy.id, convoy.name, convoy.status);
+    const scriptContent = generateConvoyScriptContent(convoy.id, convoy.name, convoy.status, gastownPath);
     await Deno.writeTextFile(scriptPath, scriptContent);
     await Deno.chmod(scriptPath, 0o755);
     convoyScriptPaths.set(convoy.id, scriptPath);

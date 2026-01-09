@@ -13,6 +13,46 @@ import {
   type DashboardConvoyInfo,
   type ConvoyStatus,
 } from './mprocs.ts';
+import { join } from 'https://deno.land/std@0.208.0/path/mod.ts';
+
+/**
+ * Find the gastown binary path.
+ *
+ * Checks:
+ * 1. ${CWD}/gastown (compiled binary in project)
+ * 2. gastown in PATH
+ *
+ * @returns Full path to gastown binary
+ * @throws If gastown cannot be found
+ */
+async function findGastownPath(): Promise<string> {
+  // Try local compiled binary first
+  const localPath = join(Deno.cwd(), 'gastown');
+  try {
+    const stat = await Deno.stat(localPath);
+    if (stat.isFile) {
+      return localPath;
+    }
+  } catch {
+    // Not found locally, try PATH
+  }
+
+  // Try finding in PATH
+  const whichCmd = new Deno.Command('which', {
+    args: ['gastown'],
+    stdout: 'piped',
+    stderr: 'null',
+  });
+  const result = await whichCmd.output();
+  if (result.success) {
+    const path = new TextDecoder().decode(result.stdout).trim();
+    if (path) {
+      return path;
+    }
+  }
+
+  throw new Error('gastown binary not found. Run "deno compile --allow-all --output=gastown gastown.ts" first.');
+}
 
 /**
  * Map bd convoy status to dashboard status based on tmux session presence.
@@ -67,6 +107,16 @@ export function mapConvoysToDashboard(
 export async function launchDashboard(): Promise<void> {
   console.log('Launching Gastown dashboard...');
 
+  // Find gastown binary path
+  let gastownPath: string;
+  try {
+    gastownPath = await findGastownPath();
+    console.log(`Using gastown at: ${gastownPath}`);
+  } catch (error) {
+    console.error((error as Error).message);
+    Deno.exit(1);
+  }
+
   // Get open convoys from bd
   let convoys: ConvoyInfo[] = [];
   try {
@@ -88,7 +138,7 @@ export async function launchDashboard(): Promise<void> {
   }
 
   // Generate and write mprocs config (writeMprocsConfig handles status script too)
-  const configPath = await writeMprocsConfig(dashboardConvoys);
+  const configPath = await writeMprocsConfig(dashboardConvoys, gastownPath);
 
   console.log(`Starting mprocs...`);
 
