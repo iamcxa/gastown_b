@@ -374,12 +374,14 @@ function generateWelcomeScript(): string {
  * @param convoys - List of convoy info objects
  * @param statusScriptPath - Path to the status script
  * @param convoyScriptPaths - Map of convoy ID to script path
+ * @param commanderScriptPath - Path to the commander pane script
  * @returns YAML configuration string
  */
 export function generateMprocsConfig(
   convoys: DashboardConvoyInfo[],
   statusScriptPath?: string,
   convoyScriptPaths?: Map<string, string>,
+  commanderScriptPath?: string,
 ): string {
   const lines: string[] = [];
 
@@ -427,6 +429,19 @@ export function generateMprocsConfig(
     lines.push(`    shell: "bash ${statusScriptPath}"`);
   } else {
     lines.push(`    shell: "bash -c 'while true; do clear; echo \\"GAS TOWN CONTROL ROOM\\"; date; sleep 2; done'"`);
+  }
+  lines.push('    autorestart: true');
+
+  // Commander pane - Strategic Control Interface
+  lines.push('');
+  lines.push('  # ═══════════════════════════════════════════════════════════════════════════');
+  lines.push('  # COMMANDER - Strategic Control Interface');
+  lines.push('  # ═══════════════════════════════════════════════════════════════════════════');
+  lines.push('  "💬 COMMANDER":');
+  if (commanderScriptPath) {
+    lines.push(`    shell: "bash ${commanderScriptPath}"`);
+  } else {
+    lines.push(`    shell: "bash -c 'while true; do clear; echo \\"COMMANDER - Press s to start\\"; read -t 1 -n 1 key; done'"`);
   }
   lines.push('    autorestart: true');
 
@@ -484,6 +499,12 @@ export async function writeMprocsConfig(convoys: DashboardConvoyInfo[], gastownP
   await Deno.writeTextFile(statusScriptPath, generateStatusScriptContent());
   await Deno.chmod(statusScriptPath, 0o755);
 
+  // Write Commander pane script
+  const commanderScriptPath = `${tempDir}/commander.sh`;
+  const { generateCommanderScriptContent } = await import("./commander-pane.ts");
+  await Deno.writeTextFile(commanderScriptPath, generateCommanderScriptContent(gastownPath));
+  await Deno.chmod(commanderScriptPath, 0o755);
+
   // Write convoy detail scripts
   const convoyScriptPaths = new Map<string, string>();
   for (const convoy of convoys) {
@@ -495,7 +516,7 @@ export async function writeMprocsConfig(convoys: DashboardConvoyInfo[], gastownP
   }
 
   // Generate and write the mprocs config
-  const config = generateMprocsConfig(convoys, statusScriptPath, convoyScriptPaths);
+  const config = generateMprocsConfig(convoys, statusScriptPath, convoyScriptPaths, commanderScriptPath);
   const configPath = `${tempDir}/mprocs.yaml`;
   await Deno.writeTextFile(configPath, config);
 
