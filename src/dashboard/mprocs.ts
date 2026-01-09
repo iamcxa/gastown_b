@@ -84,6 +84,7 @@ const BRAILLE = ['⠀', '⠄', '⠆', '⠇', '⡇', '⣇', '⣧', '⣷', '⣿'];
 /**
  * Generate the main control room status display script.
  * Creates an imposing industrial-themed ASCII dashboard.
+ * Uses ANSI colors: Navy blue background with cyan/gold accents.
  */
 function generateStatusScriptContent(): string {
   return `#!/bin/bash
@@ -92,12 +93,27 @@ function generateStatusScriptContent(): string {
 # Soviet Space Program / Industrial Brutalism Aesthetic
 # ══════════════════════════════════════════════════════════════════════════════
 
+# ANSI Color Codes - Control Room Theme (Navy/Cyan)
+BG="\\033[48;5;17m"       # Dark navy blue background
+FG="\\033[38;5;51m"       # Cyan foreground
+GOLD="\\033[38;5;220m"    # Gold accent
+DIM="\\033[38;5;244m"     # Dim gray
+BOLD="\\033[1m"
+RESET="\\033[0m"
+
 # Spinner animation frames
 SPIN=('◐' '◓' '◑' '◒')
 FRAME=0
 
+# Set full screen background
+set_background() {
+  # Fill screen with background color
+  echo -ne "\${BG}"
+  clear
+}
+
 print_header() {
-  echo ""
+  echo -e "\${BG}\${GOLD}"
   echo "  ██████╗  █████╗ ███████╗    ████████╗ ██████╗ ██╗    ██╗███╗   ██╗"
   echo " ██╔════╝ ██╔══██╗██╔════╝    ╚══██╔══╝██╔═══██╗██║    ██║████╗  ██║"
   echo " ██║  ███╗███████║███████╗       ██║   ██║   ██║██║ █╗ ██║██╔██╗ ██║"
@@ -105,9 +121,9 @@ print_header() {
   echo " ╚██████╔╝██║  ██║███████║       ██║   ╚██████╔╝╚███╔███╔╝██║ ╚████║"
   echo "  ╚═════╝ ╚═╝  ╚═╝╚══════╝       ╚═╝    ╚═════╝  ╚══╝╚══╝ ╚═╝  ╚═══╝"
   echo ""
-  echo " ○────────────────────────────────────────────────────────────────────○"
-  echo " │  M U L T I - A G E N T   O R C H E S T R A T O R   v 1 . 0        │"
-  echo " ○────────────────────────────────────────────────────────────────────○"
+  echo -e "\${FG} ○────────────────────────────────────────────────────────────────────○"
+  echo -e " │\${BOLD}  M U L T I - A G E N T   O R C H E S T R A T O R   v 1 . 0       \${FG} │"
+  echo -e " ○────────────────────────────────────────────────────────────────────○"
 }
 
 print_system_panel() {
@@ -116,23 +132,23 @@ print_system_panel() {
   local uptime_str=\$(uptime | sed 's/.*up //' | sed 's/,.*//')
 
   echo ""
-  echo " ╔══════════════════════════════════════════════════════════════════════╗"
-  echo " ║  \$spin SYSTEM STATUS                                                  ║"
-  echo " ╠══════════════════════════════════════════════════════════════════════╣"
-  echo " ║                                                                      ║"
-  printf " ║  %-68s ║\\n" "◈ TIMESTAMP    │ \$time"
-  printf " ║  %-68s ║\\n" "◈ UPTIME       │ \$uptime_str"
-  printf " ║  %-68s ║\\n" "◈ PLATFORM     │ \$(uname -s) \$(uname -m)"
-  echo " ║                                                                      ║"
-  echo " ╚══════════════════════════════════════════════════════════════════════╝"
+  echo -e "\${FG} ╔══════════════════════════════════════════════════════════════════════╗"
+  echo -e " ║  \${GOLD}\$spin SYSTEM STATUS\${FG}                                                  ║"
+  echo -e " ╠══════════════════════════════════════════════════════════════════════╣"
+  echo -e " ║                                                                      ║"
+  printf " ║  \${DIM}◈ TIMESTAMP    │\${RESET}\${BG}\${FG} %-40s\${FG}         ║\\n" "\$time"
+  printf " ║  \${DIM}◈ UPTIME       │\${RESET}\${BG}\${FG} %-40s\${FG}         ║\\n" "\$uptime_str"
+  printf " ║  \${DIM}◈ PLATFORM     │\${RESET}\${BG}\${FG} %-40s\${FG}         ║\\n" "\$(uname -s) \$(uname -m)"
+  echo -e " ║                                                                      ║"
+  echo -e " ╚══════════════════════════════════════════════════════════════════════╝"
 }
 
 print_convoy_panel() {
   echo ""
-  echo " ╔══════════════════════════════════════════════════════════════════════╗"
-  echo " ║  ▶ CONVOY OPERATIONS                                                 ║"
-  echo " ╠══════════════════════════════════════════════════════════════════════╣"
-  echo " ║                                                                      ║"
+  echo -e "\${FG} ╔══════════════════════════════════════════════════════════════════════╗"
+  echo -e " ║  \${GOLD}▶ CONVOY OPERATIONS\${FG}                                                 ║"
+  echo -e " ╠══════════════════════════════════════════════════════════════════════╣"
+  echo -e " ║                                                                      ║"
 
   # Get actual status if gastown is available
   if command -v gastown &> /dev/null; then
@@ -140,33 +156,33 @@ print_convoy_panel() {
       printf " ║  %-68s ║\\n" "\$line"
     done
   else
-    echo " ║   ┌─────────────────────────────────────────────────────────────┐   ║"
-    echo " ║   │  ⚠  GASTOWN CLI NOT IN PATH                                │   ║"
-    echo " ║   │     Execute from project directory or add to PATH          │   ║"
-    echo " ║   └─────────────────────────────────────────────────────────────┘   ║"
+    echo -e " ║   ┌─────────────────────────────────────────────────────────────┐   ║"
+    echo -e " ║   │  \${GOLD}⚠  GASTOWN CLI NOT IN PATH\${FG}                                │   ║"
+    echo -e " ║   │     Execute from project directory or add to PATH          │   ║"
+    echo -e " ║   └─────────────────────────────────────────────────────────────┘   ║"
   fi
 
-  echo " ║                                                                      ║"
-  echo " ╚══════════════════════════════════════════════════════════════════════╝"
+  echo -e " ║                                                                      ║"
+  echo -e " ╚══════════════════════════════════════════════════════════════════════╝"
 }
 
 print_controls_panel() {
   echo ""
-  echo " ╔══════════════════════════════════════════════════════════════════════╗"
-  echo " ║  ◆ CONTROL INTERFACE                                                 ║"
-  echo " ╠════════════════════╦════════════════════╦════════════════════════════╣"
-  echo " ║  [j/k] Navigate    ║  [r] Restart Proc  ║  [q] Exit Dashboard        ║"
-  echo " ║  [↑/↓] Scroll      ║  [x] Stop Process  ║  [z] Zoom Terminal         ║"
-  echo " ╚════════════════════╩════════════════════╩════════════════════════════╝"
+  echo -e "\${FG} ╔══════════════════════════════════════════════════════════════════════╗"
+  echo -e " ║  \${GOLD}◆ CONTROL INTERFACE\${FG}                                                 ║"
+  echo -e " ╠════════════════════╦════════════════════╦════════════════════════════╣"
+  echo -e " ║  [j/k] Navigate    ║  [r] Restart Proc  ║  [q] Exit Dashboard        ║"
+  echo -e " ║  [↑/↓] Scroll      ║  [x] Stop Process  ║  [z] Zoom Terminal         ║"
+  echo -e " ╚════════════════════╩════════════════════╩════════════════════════════╝"
   echo ""
-  echo " ○──────────────────────────────────────────────────────────────────────○"
+  echo -e "\${DIM} ○──────────────────────────────────────────────────────────────────────○"
   printf "  ░░░ REFRESH: %s ░░░  PROCESSES: Active ░░░  MODE: Monitoring ░░░\\n" "\$(date '+%H:%M:%S')"
-  echo " ○──────────────────────────────────────────────────────────────────────○"
+  echo -e " ○──────────────────────────────────────────────────────────────────────○\${RESET}"
 }
 
 # Main loop
 while true; do
-  clear
+  set_background
   print_header
   print_system_panel
   print_convoy_panel
@@ -204,43 +220,48 @@ function generateConvoyDetailScript(convoyId: string, convoyName: string, status
   const safeId = convoyId.substring(0, 20);
 
   // Interactive script with keyboard input handling
+  // Color scheme: Dark olive/green military theme (contrast with Control Room's navy)
   const lines = [
+    // ANSI Color setup - Olive/Green military theme
+    'BG=\\"\\\\033[48;5;22m\\"',      // Dark olive green background
+    'FG=\\"\\\\033[38;5;156m\\"',     // Light green foreground
+    'AMBER=\\"\\\\033[38;5;214m\\"',  // Amber/orange accent
+    'DIM=\\"\\\\033[38;5;242m\\"',    // Dim gray
+    'RESET=\\"\\\\033[0m\\"',
     'SPIN=(◐ ◓ ◑ ◒); F=0',
-    'show_panel() { clear; S=${SPIN[$F]}',
-    'echo \\"\\"',
-    'echo \\" ╔════════════════════════════════════════════════════════════════╗\\"',
-    'echo \\" ║                                                                ║\\"',
+    'show_panel() { echo -ne \\"$BG\\"; clear; S=${SPIN[$F]}',
+    'echo -e \\"$BG$AMBER\\"',
     'echo \\" ║   ▄▄ •  ▄▄▄· .▄▄ ·     ▄▄▄▄▄      ▄▄▌ ▐ ▄▌ ▐ ▄                ║\\"',
     'echo \\" ║  ▐█ ▀ ▪▐█ ▀█ ▐█ ▀.     •██  ▪     ██· █▌▐█•█▌▐█               ║\\"',
     'echo \\" ║  ▄█ ▀█▄▄█▀▀█ ▄▀▀▀█▄     ▐█.▪ ▄█▀▄ ██▪▐█▐▐▌▐█▐▐▌               ║\\"',
     'echo \\" ║  ▐█▄▪▐█▐█ ▪▐▌▐█▄▪▐█     ▐█▌·▐█▌.▐▌▐█▌██▐█▌██▐█▌               ║\\"',
     'echo \\" ║  ·▀▀▀▀  ▀  ▀  ▀▀▀▀      ▀▀▀  ▀█▄▀▪ ▀▀▀▀ ▀▪▀▀ █▪               ║\\"',
+    'echo -e \\"$FG\\"',
+    'echo \\" ╔════════════════════════════════════════════════════════════════╗\\"',
+    'echo -e \\" ║  $AMBER$S CONVOY DETAILS$FG                                             ║\\"',
+    'echo \\" ╠════════════════════════════════════════════════════════════════╣\\"',
+    'echo \\" ║                                                                ║\\"',
+    `printf \\" ║  $DIM◈ ID$FG        │ %-45s  ║\\\\n\\" \\"${safeId}\\"`,
+    'echo \\" ║                                                                ║\\"',
+    `printf \\" ║  $DIM◈ NAME$FG      │ %-45s  ║\\\\n\\" \\"${safeName}\\"`,
+    'echo \\" ║                                                                ║\\"',
+    `echo -e \\" ║  $DIM◈ STATUS$FG    │ $AMBER${statusGlyph} ${statusLabel.padEnd(10)}$FG [${progressBar}]                  ║\\"`,
+    'echo \\" ║                                                                ║\\"',
+    `echo \\" ║  $DIM◈ ACTIVITY$FG  │ ${sparkline}                               ║\\"`,
     'echo \\" ║                                                                ║\\"',
     'echo \\" ╠════════════════════════════════════════════════════════════════╣\\"',
-    'echo \\" ║  $S CONVOY DETAILS                                             ║\\"',
-    'echo \\" ╠════════════════════════════════════════════════════════════════╣\\"',
-    'echo \\" ║                                                                ║\\"',
-    `printf \\" ║  ◈ ID        │ %-45s  ║\\\\n\\" \\"${safeId}\\"`,
-    'echo \\" ║                                                                ║\\"',
-    `printf \\" ║  ◈ NAME      │ %-45s  ║\\\\n\\" \\"${safeName}\\"`,
-    'echo \\" ║                                                                ║\\"',
-    `echo \\" ║  ◈ STATUS    │ ${statusGlyph} ${statusLabel.padEnd(10)} [${progressBar}]                  ║\\"`,
-    'echo \\" ║                                                                ║\\"',
-    `echo \\" ║  ◈ ACTIVITY  │ ${sparkline}                               ║\\"`,
-    'echo \\" ║                                                                ║\\"',
-    'echo \\" ╠════════════════════════════════════════════════════════════════╣\\"',
-    'echo \\" ║  ◆ ACTIONS                                                     ║\\"',
+    'echo -e \\" ║  $AMBER◆ ACTIONS$FG                                                     ║\\"',
     'echo \\" ╠════════════════════════════════════════════════════════════════╣\\"',
     'echo \\" ║                                                                ║\\"',
     'echo \\" ║   ┌──────────────────────────────────────────────────────┐     ║\\"',
-    'echo \\" ║   │  [s] START / RESUME this convoy                     │     ║\\"',
-    'echo \\" ║   │  [r] RETRY tmux attach (mprocs reload)              │     ║\\"',
-    'echo \\" ║   │  [q] BACK to process list                          │     ║\\"',
-    'echo \\" ║   └──────────────────────────────────────────────────────┘     ║\\"',
+    'echo -e \\" ║   │  $AMBER[s]$FG START / RESUME this convoy                     │     ║\\"',
+    'echo -e \\" ║   │  $AMBER[r]$FG RETRY tmux attach (mprocs reload)              │     ║\\"',
+    'echo -e \\" ║   │  $AMBER[q]$FG BACK to process list                          │     ║\\"',
+    'echo \\" ║   └──────────────────────────────────────────────────────────┘     ║\\"',
     'echo \\" ║                                                                ║\\"',
-    'echo \\" ║   ⚠  SESSION NOT ATTACHED - Waiting for input...              ║\\"',
+    'echo -e \\" ║   $AMBER⚠$FG  SESSION NOT ATTACHED - Waiting for input...              ║\\"',
     'echo \\" ║                                                                ║\\"',
-    'echo \\" ╚════════════════════════════════════════════════════════════════╝\\"',
+    'echo -e \\" ╚════════════════════════════════════════════════════════════════╝$RESET\\"',
     'echo \\"\\"',
     '}',
     // Main loop with keyboard input
