@@ -305,22 +305,46 @@ while true; do
 
   case "\$key" in
     s|S)
-      echo -e "\\n \${AMBER}▶ Opening convoy in new terminal...\${RESET}"
-      # First ensure the convoy is started
-      gastown --resume ${convoyId} 2>/dev/null
+      echo -e "\\n \${AMBER}▶ Checking convoy status...\${RESET}"
+      SESSION_NAME="gastown-${convoyId}"
+
+      # Check if tmux session already exists
+      if tmux has-session -t "\$SESSION_NAME" 2>/dev/null; then
+        echo -e " \${FG}✓ Session exists, opening in new terminal...\${RESET}"
+      else
+        echo -e " \${AMBER}▶ Starting convoy (please wait)...\${RESET}"
+        # Start convoy in background (--no-attach would be ideal, but we redirect)
+        # Use nohup to prevent blocking
+        nohup gastown --resume ${convoyId} </dev/null >/dev/null 2>&1 &
+        GASTOWN_PID=\$!
+
+        # Wait for tmux session to be created (max 10 seconds)
+        for i in {1..20}; do
+          if tmux has-session -t "\$SESSION_NAME" 2>/dev/null; then
+            echo -e " \${FG}✓ Convoy started\${RESET}"
+            break
+          fi
+          sleep 0.5
+        done
+
+        if ! tmux has-session -t "\$SESSION_NAME" 2>/dev/null; then
+          echo -e " \${AMBER}⚠ Convoy may still be starting...\${RESET}"
+        fi
+      fi
+
       # Open new Terminal window with tmux attach (macOS)
       if [[ "\$(uname)" == "Darwin" ]]; then
-        osascript -e "tell application \\"Terminal\\" to do script \\"tmux attach -t gastown-${convoyId} || echo 'Session not found. Run: gastown --resume ${convoyId}'; read\\""
+        osascript -e "tell application \\"Terminal\\" to do script \\"tmux attach -t \$SESSION_NAME || (echo 'Waiting for session...'; sleep 3; tmux attach -t \$SESSION_NAME)\\""
         osascript -e "tell application \\"Terminal\\" to activate"
         echo -e " \${FG}✓ New terminal window opened\${RESET}"
       else
         # Linux fallback - try common terminal emulators
         if command -v gnome-terminal &>/dev/null; then
-          gnome-terminal -- tmux attach -t gastown-${convoyId}
+          gnome-terminal -- bash -c "tmux attach -t \$SESSION_NAME || (echo 'Waiting...'; sleep 3; tmux attach -t \$SESSION_NAME)"
         elif command -v xterm &>/dev/null; then
-          xterm -e "tmux attach -t gastown-${convoyId}" &
+          xterm -e "tmux attach -t \$SESSION_NAME || (sleep 3; tmux attach -t \$SESSION_NAME)" &
         else
-          echo -e " \${AMBER}⚠ Please run manually: tmux attach -t gastown-${convoyId}\${RESET}"
+          echo -e " \${AMBER}⚠ Please run manually: tmux attach -t \$SESSION_NAME\${RESET}"
         fi
       fi
       sleep 2
