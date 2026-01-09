@@ -4,6 +4,8 @@ export { launchDashboard, mapConvoyStatus, mapConvoysToDashboard } from './dashb
 export {
   generateMprocsConfig,
   writeMprocsConfig,
+  generateStatusScriptContent,
   type DashboardConvoyInfo,
   type ConvoyStatus,
 } from './mprocs.ts';
+export { generateCommanderScriptContent } from './commander-pane.ts';
